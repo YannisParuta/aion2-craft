@@ -75,26 +75,41 @@
     return Math.ceil(Math.log(1 - conf) / Math.log(1 - q));
   }
 
+  /*
+    Plusieurs objectifs à la fois (atelier), stock commun.
+    o : { entries:[{type, goal, qty}], lvl, decompose, buy:{nom:true}, stock:{nom:n}, margin, ideal }
+    (forme courte acceptée : { type, goal, qty, ... })
+    -> { leaves:[{n,need,stock,net}], steps:[{n,produce,crafts,succ,...}], blocked:[noms] }
+  */
   function compute(D, o) {
-    var R = recipes(D, o.type, o.lvl, o.ideal);
+    var entries = o.entries || [{ type: o.type, goal: o.goal, qty: o.qty }];
+    entries = entries.filter(function (e) { return e && D.chains[e.type] && e.goal && +e.qty > 0; });
+    var R = {}, goalSet = {};
+    entries.forEach(function (e) {
+      var r = recipes(D, e.type, o.lvl, o.ideal);
+      Object.keys(r).forEach(function (n) { if (!R[n]) { R[n] = r[n]; if (r[n].kind === 'chain') R[n].type = e.type; } });
+      goalSet[e.goal] = 1;
+    });
     // Plan "sans échec" calculé d'abord : un jalon dont le stock couvre ce minimum est considéré comme atteint
     var min = {};
-    if (!o.ideal) compute(D, Object.assign({}, o, { ideal: true })).steps.forEach(function (x) { min[x.n] = x; });
+    if (!o.ideal) compute(D, Object.assign({}, o, { entries: entries, ideal: true })).steps.forEach(function (x) { min[x.n] = x; });
     var isCraft = function (n) {
       if (!R[n]) return false;
-      if (o.buy && o.buy[n] && n !== o.goal) return false;
+      if (o.buy && o.buy[n] && !goalSet[n]) return false;
       if (R[n].kind === 'inter' && !o.decompose) return false;
       return true;
     };
     // ordre topologique (parents avant enfants)
     var order = [], seen = {};
-    (function visit(n) {
+    var visit = function (n) {
       if (seen[n]) return; seen[n] = 1;
       if (isCraft(n)) R[n].comps.forEach(function (c) { visit(c[0]); });
       order.push(n);
-    })(o.goal);
+    };
+    entries.forEach(function (e) { visit(e.goal); });
     order.reverse();
-    var gross = {}; gross[o.goal] = o.qty;
+    var gross = {};
+    entries.forEach(function (e) { gross[e.goal] = (gross[e.goal] || 0) + +e.qty; });
     var leaves = [], steps = [], blocked = [];
     order.forEach(function (n) {
       var g = gross[n] || 0, st = (o.stock && +o.stock[n]) || 0;
@@ -102,9 +117,9 @@
       var net = Math.max(0, g - st);
       if (isCraft(n)) {
         var r = R[n];
-        if (!isFinite(r.crafts)) blocked.push(n);
+        if (!isFinite(r.crafts) && net > 0) blocked.push(n);
         r.comps.forEach(function (c) { gross[c[0]] = (gross[c[0]] || 0) + net * c[1]; });
-        steps.push({ n: n, gross: g, stock: st, produce: net, crafts: net * r.crafts, perUnit: r.crafts, succ: r.succ, comboSucc: r.comboSucc, lv: r.lv, kind: r.kind, k: r.k, transfer: !!r.transfer, splendent: !!r.splendent });
+        steps.push({ n: n, type: r.type, gross: g, stock: st, produce: net, crafts: net * r.crafts, perUnit: r.crafts, succ: r.succ, comboSucc: r.comboSucc, lv: r.lv, kind: r.kind, k: r.k, transfer: !!r.transfer, splendent: !!r.splendent, goal: !!goalSet[n] });
       } else {
         var m = 1 + (o.margin || 0) / 100;
         leaves.push({ n: n, need: g * m, stock: st, net: Math.max(0, g * m - st), bought: !!R[n] });
@@ -121,6 +136,29 @@
     return { leaves: leaves, steps: steps, blocked: blocked, recipes: R };
   }
 
-  root.AionEngine = { chance: chance, target: target, goals: goals, normalizeGoal: normalizeGoal, attemptsFor: attemptsFor, recipes: recipes, compute: compute };
+  /*
+    Jusqu'où aller avec le stock actuel, pour un type d'objet.
+    -> { avg: dernier jalon couvert en moyenne, min: dernier jalon couvert si tout réussit,
+         next: jalon suivant, missing: [{n, net}] pour l'atteindre (en moyenne) }
+  */
+  function reach(D, o) {
+    var gs = goals(D, o.type), res = { avg: null, min: null, next: null, missing: [] };
+    var covered = function (g, ideal) {
+      var r = compute(D, Object.assign({}, o, { entries: [{ type: o.type, goal: g, qty: 1 }], margin: 0, ideal: ideal }));
+      var miss = r.leaves.filter(function (l) { return l.net > 1e-6; });
+      return { ok: !miss.length && !r.blocked.length, miss: miss };
+    };
+    for (var i = 0; i < gs.length; i++) {
+      var c = covered(gs[i].name, false);
+      if (c.ok) { res.avg = gs[i].name; continue; }
+      res.next = gs[i].name;
+      res.missing = c.miss.map(function (l) { return { n: l.n, net: l.net }; }).sort(function (a, b) { return b.net - a.net; });
+      break;
+    }
+    for (var j = 0; j < gs.length; j++) { if (covered(gs[j].name, true).ok) res.min = gs[j].name; else break; }
+    return res;
+  }
+
+  root.AionEngine = { chance: chance, target: target, goals: goals, normalizeGoal: normalizeGoal, attemptsFor: attemptsFor, recipes: recipes, compute: compute, reach: reach };
   if (typeof module !== 'undefined') module.exports = root.AionEngine;
 })(typeof window !== 'undefined' ? window : globalThis);

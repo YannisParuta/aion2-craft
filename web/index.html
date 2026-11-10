@@ -82,6 +82,30 @@ tr.full td{opacity:.6}
 .full-btn{background:var(--panel2);border:1px solid var(--line);border-radius:7px;width:30px;height:30px;cursor:pointer;color:var(--mute);font-weight:700;padding:0}
 .full-btn:hover{border-color:var(--green);color:var(--green)}
 .full-btn.on{background:rgba(74,222,128,.15);border-color:rgba(74,222,128,.5);color:var(--green)}
+.tabs{display:flex;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;margin:0 2px 10px}
+.tabs button{flex:1;background:none;border:0;border-radius:7px;padding:6px 4px;cursor:pointer;color:var(--mute);font-weight:600}
+.tabs button.on{background:var(--gold);color:#1b1305}
+.side-hint{color:var(--mute);font-size:11.5px;margin:0 6px 12px;line-height:1.4}
+body.m-atelier .calc-only{display:none!important}
+body.m-calc .atelier-only{display:none!important}
+.ent{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.ent .num0{color:var(--mute);font-weight:700;width:18px}
+.ent select.g{min-width:340px;flex:1}
+.ent .reach{flex-basis:100%;padding-left:30px;font-size:12px;color:var(--mute)}
+.del{background:none;border:1px solid var(--line);border-radius:7px;width:30px;height:30px;cursor:pointer;color:var(--mute)}
+.del:hover{border-color:var(--red);color:var(--red)}
+.empty{padding:18px 16px;color:var(--mute)}
+.inv-add{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.inv-add #invName{flex:1;min-width:240px}
+#inventory{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px}
+.inv{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:5px 6px 5px 11px;font-size:12.5px}
+.inv input{width:70px;padding:3px 6px;text-align:right}
+.inv .del{width:26px;height:26px}
+#reachbox .body{padding:12px 16px;display:grid;gap:8px}
+.rl{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.rl .k{color:var(--mute);font-size:12px;min-width:170px}
+.miss-list{display:flex;flex-wrap:wrap;gap:6px}
+.miss-list span{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:99px;padding:2px 9px;font-size:12px}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--gold);color:#1b1305;padding:9px 14px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 </style>
@@ -90,19 +114,41 @@ tr.full td{opacity:.6}
 <div class="app">
   <aside>
     <div class="brand">AION 2 · Craft<small>Calculateur de matériaux</small></div>
+    <div class="tabs"><button data-mode="calc">Calculateur</button><button data-mode="atelier">Atelier</button></div>
+    <div class="side-hint" id="sidehint"></div>
     <div id="types"></div>
   </aside>
   <main>
     <div class="controls">
-      <div class="field"><label>Objet à fabriquer</label><select id="goal"></select></div>
-      <div class="field"><label>Quantité</label><input id="qty" class="qty" type="number" min="1" value="1"></div>
+      <div class="field calc-only"><label>Objet à fabriquer</label><select id="goal"></select></div>
+      <div class="field calc-only"><label>Quantité</label><input id="qty" class="qty" type="number" min="1" value="1"></div>
       <div class="field"><label>Niveau du métier</label>
         <select id="rank"><option value="nov">Novice</option><option value="pro">Professionnel</option></select>
         <input id="lvlnum" class="lvlnum" type="number" min="1" max="50" value="50">
       </div>
       <div class="field"><label>Marge de sécurité</label><select id="margin"><option value="0">Aucune</option><option value="10">+10 %</option><option value="20">+20 %</option><option value="30">+30 %</option><option value="50">+50 %</option></select></div>
       <label class="chk" title="Calculer les lingots, cornes, écailles, cuirs, décorations… à partir des matières brutes"><input id="decomp" type="checkbox" checked> Décomposer les composants</label>
+      <button class="btn calc-only" id="toAtelier" style="margin-bottom:2px">+ Ajouter à l'atelier</button>
     </div>
+
+    <section class="atelier-only">
+      <header><h2>Atelier</h2><span class="hint">Ajoute les objets que tu veux fabriquer : les matériaux de tout l'atelier sont additionnés, ton stock est partagé.</span><span class="sp"></span>
+        <button class="btn" id="addEntry">+ Ajouter un objet</button></header>
+      <div id="atelier"></div>
+    </section>
+
+    <section class="atelier-only">
+      <header><h2>Mon inventaire</h2><span class="hint">Ce que tu as déjà : matériaux, composants ou objets éclatants. C'est le même stock que dans les tableaux.</span></header>
+      <div class="inv-add">
+        <input id="invName" list="allItems" type="text" placeholder="Nom de l'objet (ex. Od pur, Épée éclatante d'orichalque…)" autocomplete="off">
+        <input id="invQty" type="number" min="1" placeholder="Qté" style="width:90px">
+        <button class="btn" id="invAdd">Ajouter</button>
+      </div>
+      <datalist id="allItems"></datalist>
+      <div id="inventory"></div>
+    </section>
+
+    <section class="calc-only" id="reachbox"></section>
 
     <div id="warn"></div>
     <div class="summary" id="summary"></div>
@@ -136,7 +182,7 @@ var D, E = window.AionEngine;
 var PROF = {blacksmithing:'Forge d\'armes', alchemy:'Alchimie', jewelcrafting:'Artisanat', tailoring:'Forge d\'armures'};
 var TIER = {w:'Palier 1 · Orichalque', e:'Palier 2 · Expert', a:'Palier 3 · Maître', s1:'Étoilé · iLvl 62', s1s:'Étoilé · iLvl 70', s2:'Noir · iLvl 78', s2s:'Noir · iLvl 86', s3:'Sombre · iLvl 94', s3s:'Sombre · iLvl 102'};
 var COL = {w:'var(--w)', e:'var(--e)', a:'var(--a)', s1:'var(--s1)', s1s:'var(--s1)', s2:'var(--s2)', s2s:'var(--s2)', s3:'var(--s3)', s3s:'var(--s3)'};
-var S = {type:'sword', goal:null, qty:1, lvl:100, decompose:true, margin:0, stock:{}, prices:{}, buy:{}, matFilter:''};
+var S = {type:'sword', goal:null, qty:1, lvl:100, decompose:true, margin:0, stock:{}, prices:{}, buy:{}, matFilter:'', mode:'calc', atelier:[]};
 var $ = function(id){return document.getElementById(id);};
 var fr = function(n){return (D.fr && D.fr[n]) || n;};
 var esc = function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
@@ -150,14 +196,25 @@ var price = function(n){ var v = S.prices[n]; if (v!=null && v!=='') return +v; 
 // Version web (GitHub Pages) : état enregistré uniquement dans le navigateur (localStorage).
 var DESKTOP = location.hostname==='127.0.0.1';
 var saveT;
+function flush(){
+  clearTimeout(saveT); saveT = null;
+  var body = JSON.stringify(S);
+  try{ localStorage.setItem('aion2-craft', body); }catch(e){}
+  return body;
+}
 function save(){
   clearTimeout(saveT);
   saveT = setTimeout(function(){
-    var body = JSON.stringify(S);
-    try{ localStorage.setItem('aion2-craft', body); }catch(e){}
+    var body = flush();
     if(DESKTOP) fetch('api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).catch(function(){});
   }, 300);
 }
+// fermeture ou rechargement de la page : on enregistre tout de suite ce qui est en attente
+window.addEventListener('pagehide',function(){
+  if (saveT==null) return;
+  var body = flush();
+  if (DESKTOP) try{ navigator.sendBeacon('api/state', new Blob([body],{type:'application/json'})); }catch(e){}
+});
 function load(){
   return (DESKTOP ? fetch('api/state') : Promise.reject(0)).then(function(r){ if(!r.ok) throw 0; return r.json(); })
     .catch(function(){ try{ return JSON.parse(localStorage.getItem('aion2-craft')||'null'); }catch(e){ return null; } })
@@ -174,6 +231,7 @@ function buildTypes(){
   }).join('');
   $('types').addEventListener('click',function(e){
     var b=e.target.closest('button[data-t]'); if(!b) return;
+    if (S.mode==='atelier'){ var t=b.getAttribute('data-t'), g=E.goals(D,t); S.atelier.push({type:t, goal:g[g.length-1].name, qty:1}); save(); render(); toast('Ajouté à l\'atelier'); return; }
     var oldIdx = goalIndex();
     S.type=b.getAttribute('data-t');
     var g = E.goals(D,S.type); S.goal = g[Math.min(oldIdx, g.length-1)].name;
@@ -190,8 +248,23 @@ function fillGoals(){
     return '<option value="'+esc(x.name)+'"'+(x.name===S.goal?' selected':'')+'>'+esc(fr(x.name))+'  —  '+lbl+'</option>';
   }).join('');
 }
+function goalOptions(type, sel){
+  return E.goals(D,type).map(function(x){
+    var lbl = TIER[x.k] + (/^(w|e|a)$/.test(x.k) ? ' · jalon (combo 25 %)' : '');
+    return '<option value="'+esc(x.name)+'"'+(x.name===sel?' selected':'')+'>'+esc(fr(x.name))+'  —  '+lbl+'</option>';
+  }).join('');
+}
+function typeOptions(sel){
+  return ['blacksmithing','alchemy','jewelcrafting','tailoring'].map(function(p){
+    return '<optgroup label="'+PROF[p]+'">'+Object.keys(D.types).filter(function(t){return D.types[t][0]===p;}).map(function(t){
+      return '<option value="'+t+'"'+(t===sel?' selected':'')+'>'+esc(D.types[t][1])+'</option>'; }).join('')+'</optgroup>';
+  }).join('');
+}
 function syncControls(){
-  [].forEach.call(document.querySelectorAll('#types button'),function(b){ b.classList.toggle('on', b.getAttribute('data-t')===S.type); });
+  document.body.className = 'm-'+(S.mode==='atelier'?'atelier':'calc');
+  [].forEach.call(document.querySelectorAll('[data-mode]'),function(b){ b.classList.toggle('on', b.getAttribute('data-mode')===S.mode); });
+  $('sidehint').textContent = S.mode==='atelier' ? 'Clique sur un objet pour l\'ajouter à l\'atelier.' : '';
+  [].forEach.call(document.querySelectorAll('#types button'),function(b){ b.classList.toggle('on', S.mode!=='atelier' && b.getAttribute('data-t')===S.type); });
   $('qty').value = S.qty;
   $('rank').value = S.lvl>50 ? 'pro' : 'nov';
   $('lvlnum').value = S.lvl>50 ? S.lvl-50 : S.lvl;
@@ -206,7 +279,13 @@ function readLvl(){
 var last;
 function render(){
   syncControls();
-  var r = E.compute(D,{type:S.type, goal:S.goal, qty:Math.max(1,+S.qty||1), lvl:S.lvl, decompose:S.decompose, buy:S.buy, stock:S.stock, margin:+S.margin});
+  var AT = S.mode==='atelier';
+  S.atelier = (S.atelier||[]).filter(function(e){ return e && D.chains[e.type]; });
+  S.atelier.forEach(function(e){ e.goal = E.normalizeGoal(D,e.type,e.goal); });
+  var entries = AT ? S.atelier : [{type:S.type, goal:S.goal, qty:Math.max(1,+S.qty||1)}];
+  var opts = {lvl:S.lvl, decompose:S.decompose, buy:S.buy, stock:S.stock, margin:+S.margin};
+  var r = E.compute(D, Object.assign({entries:entries}, opts));
+  if (AT) renderAtelier(opts); else renderReach(opts);
   r.leaves = r.leaves.filter(function(x){ return x.need > 1e-9; });
   last = r;
   // avertissements
@@ -254,7 +333,7 @@ function render(){
   var totalCrafts = 0;
   var srows = r.steps.filter(function(s){ return s.gross > 1e-9 || s.n===S.goal; }).map(function(s){
     totalCrafts += isFinite(s.crafts) ? s.crafts : 0;
-    var isGoal = s.n===S.goal, col = s.kind==='inter' ? 'var(--mute)' : COL[s.k];
+    var isGoal = s.goal, col = s.kind==='inter' ? 'var(--mute)' : COL[s.k];
     var type = s.kind==='inter' ? 'Composant' : TIER[s.k] + (s.transfer?' · transfert':'') + (s.comboSucc!=null && s.splendent?' · jalon':'');
     var pct = function(x){ return (x*100).toFixed(1).replace('.',',')+' %'; };
     var isMs = s.comboSucc!=null && s.splendent;
@@ -286,21 +365,70 @@ function render(){
     var how = s.comboSucc!=null ? 'combo '+(s.comboSucc*100).toFixed(1).replace('.',',')+' % / tentative · ≈ '+fmtN(s.crafts,1)+' tentatives'
       : s.transfer ? 'transfert garanti' : 'réussite '+(s.succ*100).toFixed(1).replace('.',',')+' % · ≈ '+fmtN(s.crafts,1)+' tentatives';
     var risk = !done && avg-minP > 0.02 ? '<br><span class="s" title="Moyenne en comptant les tentatives ratées">avec les échecs : ≈ '+fmtN(avg,2)+' en moyenne</span>' : '';
-    return '<div class="ms'+(done?' done':'')+(s===firstTodo?' next':'')+(s.n===S.goal?' goal':'')+'" style="--c:'+COL[s.k]+'" title="'+esc(s.n)+'">'+
-      '<span style="flex:1"><span class="t" style="color:'+COL[s.k]+'">'+(i+1)+'. '+esc(fr(s.n))+'</span><br><span class="s">'+TIER[s.k]+'</span><br>'+
+    return '<div class="ms'+(done?' done':'')+(s===firstTodo?' next':'')+(s.goal?' goal':'')+'" style="--c:'+COL[s.k]+'" title="'+esc(s.n)+'">'+
+      '<span style="flex:1"><span class="t" style="color:'+COL[s.k]+'">'+(i+1)+'. '+esc(fr(s.n))+'</span><br><span class="s">'+(AT && s.type ? esc(D.types[s.type][1])+' · ' : '')+TIER[s.k]+'</span><br>'+
       '<span class="s">'+(done?'<span class="ok">'+(minNeed>0?'✓ jalon atteint':'✓ plus nécessaire (jalon suivant atteint)')+'</span>':'à obtenir : <b style="color:var(--text)">'+minP+'</b> · '+how)+'</span>'+risk+'</span>'+
       '<span style="text-align:center"><span class="s">en stock</span><br><span class="stockc"><input type="number" min="0" data-stock="'+esc(s.n)+'" value="'+(S.stock[s.n]||'')+'" placeholder="0" style="width:50px;padding:3px 5px;text-align:right">'+
       '<span class="s">/ '+minNeed+'</span><button class="full-btn'+(done?' on':'')+'" data-full="'+esc(s.n)+'" data-need="'+minNeed+'" title="J\'ai les '+minNeed+'">✓</button></span></span></div>';
   }).join('');
 
-  var goalStep = r.steps.filter(function(s){return s.n===S.goal;})[0];
   $('summary').innerHTML =
-    card('Objectif', esc(fr(S.goal)) + (S.qty>1?' ×'+S.qty:''), '', 'font-size:15px') +
+    (AT ? card('Atelier', entries.length ? entries.length+' objet'+(entries.length>1?'s':'')+' · '+entries.reduce(function(a,e){return a+(+e.qty||0);},0)+' au total' : 'vide', '', 'font-size:15px')
+        : card('Objectif', esc(fr(S.goal)) + (S.qty>1?' ×'+S.qty:''), '', 'font-size:15px')) +
     card('Niveau du métier', lvName(S.lvl)) +
     card('Crafts estimés au total', fmtN(totalCrafts,0)) +
     card('Matériaux différents', r.leaves.length) +
     card('Coût du manquant (kinah)', kinah(totalNet) + (noPrice?' <span class="miss" style="font-size:12px">+ '+noPrice+' prix à saisir</span>':''), 'gold') +
     card('Coût total sans stock (kinah)', kinah(total));
+}
+/* jusqu'où aller avec le stock (mode calculateur) */
+function reachHtml(rc, type){
+  var nm = function(n){ return n ? '<b style="color:'+COL[(E.goals(D,type).filter(function(g){return g.name===n;})[0]||{}).k]+'">'+esc(fr(n))+'</b>' : '<span class="mute">aucun jalon complet</span>'; };
+  var h = '<div class="rl"><span class="k">En moyenne (échecs compris)</span>'+nm(rc.avg)+'</div>'+
+          '<div class="rl"><span class="k">Si tout réussit du 1er coup</span>'+nm(rc.min)+'</div>';
+  if (rc.next) h += '<div class="rl"><span class="k">Pour '+esc(fr(rc.next))+', il manque</span><span class="miss-list">'+
+      rc.missing.slice(0,10).map(function(m){ return '<span>'+fmtN(Math.ceil(m.net-1e-9))+' × '+esc(fr(m.n))+'</span>'; }).join('')+
+      (rc.missing.length>10?'<span>+ '+(rc.missing.length-10)+' autres</span>':'')+'</span></div>';
+  else h += '<div class="rl"><span class="k"></span><span class="ok">✓ ton stock couvre toute la progression de cet objet</span></div>';
+  return h;
+}
+function renderReach(opts){
+  var rc = E.reach(D, Object.assign({type:S.type}, opts));
+  $('reachbox').innerHTML = '<header><h2>Avec ton stock</h2><span class="hint">Jusqu\'où tu peux aller en '+esc(D.types[S.type][1]).toLowerCase()+' avec ce que tu as déjà (stock saisi dans les tableaux).</span><span class="sp"></span>'+
+    (rc.next && rc.next!==S.goal ? '<button class="btn" data-aim="'+esc(rc.next)+'">Viser le prochain jalon</button>' : '')+'</header><div class="body">'+reachHtml(rc, S.type)+'</div>';
+}
+function renderAtelier(opts){
+  $('atelier').innerHTML = S.atelier.length ? S.atelier.map(function(e,i){
+    var rc = E.reach(D, Object.assign({type:e.type}, opts));
+    var col = COL[(E.goals(D,e.type).filter(function(g){return g.name===e.goal;})[0]||{}).k];
+    return '<div class="ent"><span class="num0">'+(i+1)+'</span>'+
+      '<select data-et="'+i+'">'+typeOptions(e.type)+'</select>'+
+      '<select class="g" data-eg="'+i+'" style="color:'+col+'">'+goalOptions(e.type, e.goal)+'</select>'+
+      '<span class="mute">×</span><input type="number" min="1" class="qty" data-eq="'+i+'" value="'+e.qty+'">'+
+      '<button class="del" data-edel="'+i+'" title="Retirer de l\'atelier">✕</button>'+
+      '<div class="reach">Avec ton stock : '+(rc.avg?'jusqu\'à <b style="color:var(--text)">'+esc(fr(rc.avg))+'</b> en moyenne':'aucun jalon complet pour l\'instant')+
+        (rc.min && rc.min!==rc.avg ? ' · <b style="color:var(--text)">'+esc(fr(rc.min))+'</b> si tout réussit' : '')+'</div></div>';
+  }).join('') : '<div class="empty">L\'atelier est vide. Clique sur un objet à gauche ou sur « + Ajouter un objet ».</div>';
+  // inventaire
+  var inv = Object.keys(S.stock).filter(function(n){ return +S.stock[n]>0; }).sort(function(a,b){ return fr(a).localeCompare(fr(b),'fr'); });
+  $('inventory').innerHTML = inv.length ? inv.map(function(n){
+    return '<span class="inv" title="'+esc(n)+'">'+esc(fr(n))+'<input type="number" min="0" data-stock="'+esc(n)+'" value="'+S.stock[n]+'"><button class="del" data-sdel="'+esc(n)+'" title="Retirer">✕</button></span>';
+  }).join('') : '<span class="mute">Inventaire vide.</span>';
+}
+var NAMES;
+function allNames(){
+  if (NAMES) return NAMES;
+  var set = {};
+  Object.keys(D.chains).forEach(function(t){ D.chains[t].forEach(function(st){ set[st.n]=1; if(st.combo) set[st.combo]=1; st['in'].forEach(function(x){ set[x[0]]=1; }); }); });
+  Object.keys(D.inter).forEach(function(n){ set[n]=1; D.inter[n].forEach(function(x){ set[x[0]]=1; }); });
+  NAMES = Object.keys(set).sort(function(a,b){ return fr(a).localeCompare(fr(b),'fr'); });
+  return NAMES;
+}
+function findName(txt){
+  var t = String(txt||'').trim().toLowerCase(); if(!t) return null;
+  var list = allNames();
+  for (var i=0;i<list.length;i++) if (fr(list[i]).toLowerCase()===t || list[i].toLowerCase()===t) return list[i];
+  return null;
 }
 function card(k,v,cls,style){ return '<div class="card"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" style="'+(style||'')+'">'+v+'</div></div>'; }
 
@@ -318,11 +446,33 @@ function bind(){
     var t=e.target, n;
     if ((n=t.getAttribute('data-stock'))!=null){ var v=parseFloat(t.value); if(v>0) S.stock[n]=v; else delete S.stock[n]; save(); render(); }
     else if ((n=t.getAttribute('data-price'))!=null){ if(t.value==='') delete S.prices[n]; else S.prices[n]=Math.max(0,+t.value); save(); render(); }
+    else if ((n=t.getAttribute('data-et'))!=null){ var en=S.atelier[+n], g=E.goals(D,t.value); en.type=t.value; en.goal=g[g.length-1].name; save(); render(); }
+    else if ((n=t.getAttribute('data-eg'))!=null){ S.atelier[+n].goal=t.value; save(); render(); }
+    else if ((n=t.getAttribute('data-eq'))!=null){ S.atelier[+n].qty=Math.max(1,parseInt(t.value,10)||1); save(); render(); }
     else if ((n=t.getAttribute('data-buy'))!=null){ if(t.checked) S.buy[n]=true; else delete S.buy[n]; save(); render(); }
   });
   document.addEventListener('keydown',function(e){ if(e.key==='Enter' && e.target.matches('td input')) e.target.blur(); });
+  $('toAtelier').addEventListener('click',function(){ S.atelier.push({type:S.type, goal:S.goal, qty:Math.max(1,+S.qty||1)}); save(); toast('Ajouté à l\'atelier ('+S.atelier.length+' objet'+(S.atelier.length>1?'s':'')+')'); });
+  $('addEntry').addEventListener('click',function(){ var g=E.goals(D,S.type); S.atelier.push({type:S.type, goal:g[g.length-1].name, qty:1}); save(); render(); });
+  $('allItems').innerHTML = allNames().map(function(n){ return '<option value="'+esc(fr(n))+'">'; }).join('');
+  var invAdd = function(){
+    var n = findName($('invName').value), q = parseFloat($('invQty').value);
+    if (!n){ toast('Objet introuvable : choisis-le dans la liste'); return; }
+    if (!(q>0)){ toast('Indique une quantité'); return; }
+    S.stock[n] = (+S.stock[n]||0) + q; $('invName').value=''; $('invQty').value=''; save(); render(); toast(fr(n)+' : '+S.stock[n]);
+  };
+  $('invAdd').addEventListener('click', invAdd);
+  $('invQty').addEventListener('keydown',function(e){ if(e.key==='Enter') invAdd(); });
   $('clearStock').addEventListener('click',function(){ if(!Object.keys(S.stock).length) return; if(confirmClear()){ S.stock={}; save(); render(); toast('Stock vidé'); } });
   document.addEventListener('click',function(e){
+    var m=e.target.closest('[data-mode],[data-aim],[data-edel],[data-sdel]');
+    if (m){
+      if (m.hasAttribute('data-mode')) S.mode=m.getAttribute('data-mode');
+      else if (m.hasAttribute('data-aim')){ S.goal=m.getAttribute('data-aim'); fillGoals(); }
+      else if (m.hasAttribute('data-edel')) S.atelier.splice(+m.getAttribute('data-edel'),1);
+      else delete S.stock[m.getAttribute('data-sdel')];
+      save(); render(); return;
+    }
     var b=e.target.closest('[data-full],[data-mf]'); if(!b) return;
     if (b.hasAttribute('data-mf')){ S.matFilter=b.getAttribute('data-mf'); save(); render(); return; }
     var n=b.getAttribute('data-full'), need=+b.getAttribute('data-need');
@@ -330,7 +480,9 @@ function bind(){
   });
   $('copy').addEventListener('click',function(){
     if(!last) return;
-    var lines = ['AION 2 — '+fr(S.goal)+(S.qty>1?' ×'+S.qty:'')+' ('+lvName(S.lvl)+')',''];
+    var lines = S.mode==='atelier'
+      ? ['AION 2 — Atelier ('+lvName(S.lvl)+')'].concat(S.atelier.map(function(e){ return '• '+fr(e.goal)+(e.qty>1?' ×'+e.qty:''); }),[''])
+      : ['AION 2 — '+fr(S.goal)+(S.qty>1?' ×'+S.qty:'')+' ('+lvName(S.lvl)+')',''];
     var G=(D.groups||[]).concat([['hdv','Achetés à l\'HdV']]);
     G.forEach(function(g){
       var it=last.leaves.filter(function(x){ return ((D.sources&&D.sources[x.n])?D.sources[x.n][0]:'hdv')===g[0] && Math.max(0,Math.ceil(x.net-1e-9))>0; });
