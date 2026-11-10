@@ -23,24 +23,25 @@ TYPES = {
     "cape": ["tailoring", "Cape", "Cloak"],
 }
 
+# Pièces Balaur raffinées : 2 Essence de Balaur + réactif du marchand (vérifié en jeu et sur le wiki, nov. 2026)
 INTER = {
     "Orichalcum Ingot": "Orichalcum Ore*2|Orichalcum Solvent (Bound)*1",
-    "Fine Thick Balaur Horn": "Thick Balaur Horn*2|Zircon Hammer (Bound)*1",
-    "Fine Hard Balaur Horn": "Hard Balaur Horn*2|Lazuli Hammer (Bound)*1",
-    "Fine Durable Balaur Horn": "Durable Balaur Horn*2|Moonstone Hammer (Bound)*1",
+    "Fine Thick Balaur Horn": "Balaur's Essence*2|Zircon Hammer (Bound)*1",
+    "Fine Hard Balaur Horn": "Balaur's Essence*2|Lazuli Hammer (Bound)*1",
+    "Fine Durable Balaur Horn": "Balaur's Essence*2|Moonstone Hammer (Bound)*1",
     "Sapphire Decoration": "Sapphire Gemstone*2|Abrasive (Bound)*1",
     "Diamond Decoration": "Diamond Gemstone*2|Abrasive (Bound)*1",
     "Ruby Decoration": "Ruby Gemstone*2|Abrasive (Bound)*1",
     "Yggdrasil Wood": "Yggdrasil Log*2|Sandpaper (Bound)*1",
     "Magic Crystal": "Spiritstone*2|Catalyst (Bound)*1",
-    "Enhanced Thick Balaur Scale": "Thick Balaur Scale*2|Lesser Dragon Scale Hardener (Bound)*1",
-    "Enhanced Hard Balaur Scale": "Hard Balaur Scale*2|Intermediate Dragon Scale Hardener (Bound)*1",
-    "Enhanced Durable Balaur Scale": "Durable Balaur Scale*2|Superior Dragon Scale Hardener (Bound)*1",
+    "Enhanced Thick Balaur Scale": "Balaur's Essence*2|Lesser Dragon Scale Hardener (Bound)*1",
+    "Enhanced Hard Balaur Scale": "Balaur's Essence*2|Intermediate Dragon Scale Hardener (Bound)*1",
+    "Enhanced Durable Balaur Scale": "Balaur's Essence*2|Superior Dragon Scale Hardener (Bound)*1",
     "Asvata Wood": "Asvata Log*2|Sandpaper (Bound)*1",
     "Strong Leather": "Raw Leather*2",
-    "Tanned Thick Balaur Leather": "Thick Balaur Leather*2|Lesser Dragon Leather Softener (Bound)*1",
-    "Tanned Hard Balaur Leather": "Hard Balaur Leather*2|Intermediate Dragon Leather Softener (Bound)*1",
-    "Tanned Durable Balaur Leather": "Durable Balaur Leather*2|Superior Dragon Leather Softener (Bound)*1",
+    "Tanned Thick Balaur Leather": "Balaur's Essence*2|Lesser Dragon Leather Softener (Bound)*1",
+    "Tanned Hard Balaur Leather": "Balaur's Essence*2|Intermediate Dragon Leather Softener (Bound)*1",
+    "Tanned Durable Balaur Leather": "Balaur's Essence*2|Superior Dragon Leather Softener (Bound)*1",
 }
 
 
@@ -260,7 +261,7 @@ GROUPS = [
     ["od", "Extraction d'Od", "Récolte en vol sur les nœuds d'Od"],
     ["butin", "Butin de monstres", "Lâché par les monstres des zones ouvertes"],
     ["raffinage", "Pierres de raffinage", "Monstres, donjons, coffres et boutique de saison"],
-    ["balaur", "Donjons : matériaux Balaur", "Donjons et Coffre de sélection de matériaux Balaur"],
+    ["balaur", "Essence de Balaur", "Base des cornes, écailles et cuirs Balaur raffinés"],
     ["rage", "Donjons Conquête et raid : matériaux de rage", "Donjons en mode Conquête, raid Ludra, boutique de saison"],
 ]
 _SHOP = {"Blacksmith": "marchand de forge d'armes", "Armorsmith": "marchand de forge d'armures",
@@ -274,7 +275,6 @@ _PNJ = {  # nom : marchands
     "Lesser Dragon Leather Softener (Bound)": "Armorsmith", "Intermediate Dragon Leather Softener (Bound)": "Armorsmith",
     "Superior Dragon Leather Softener (Bound)": "Armorsmith",
 }
-_BALAUR = {"Thick": "Krao Cave, Draupnir", "Hard": "Urugugu Canyon, Vakron Sky Island", "Durable": "Fire Temple, Ferocious Horn Den"}
 _SEASON = {"Refining Stone": 40, "Expert's Refining Stone": 400, "Artisan's Refining Stone": 4000,
            "Artisan's Ultimate Refining Stone": 4800, "Wrathful Mind": 6250, "Wrathful Will": 7500, "Wrathful Ego": 8750}
 _RAGE = {"Wrathful Mind": "les 6 donjons (Conquête)", "Wrathful Will": "Urugugu Canyon, Fire Temple, Vakron Sky Island, Ferocious Horn Den (Conquête)",
@@ -300,8 +300,8 @@ def source(n):
         return ["butin", "Monstres d'Altgard, Verteron, Chaotic Lower Reshanta · Shulak Loot Bundle"]
     if n.endswith("Refining Stone"):
         return ["raffinage", f"Monstres, donjons, Refining Stone Chest · boutique de saison {_k(_SEASON[n])} pièces de serment"]
-    if n.startswith(tuple(_BALAUR)) and "Balaur" in n:
-        return ["balaur", _BALAUR[n.split()[0]]]
+    if n == "Balaur's Essence":
+        return ["balaur", "Boss élites de Verteron, Altgard, Chaotic Lower Reshanta · les 6 donjons (Conquête) · raid Ludra · non vendable au marchand"]
     if n in _RAGE:
         return ["rage", f"{_RAGE[n]}, raid Ludra · boutique de saison {_k(_SEASON[n])} pièces de serment"]
     raise KeyError("provenance inconnue : " + n)
