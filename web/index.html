@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>AION 2 — Calculateur de craft</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#0f1117;--panel:#171a23;--panel2:#1e2230;--line:#2a2f40;--text:#e6e8ef;--mute:#8b91a5;
+  --gold:#e8b75a;--gold2:#f6d58c;--green:#4ade80;--red:#f87171;--blue:#60a5fa;
+  --w:#d1d5db;--e:#34d399;--a:#38bdf8;--s1:#fbbf24;--s2:#fb923c;--s3:#c084fc;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:230px 1fr;height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:16px 12px}
+.brand{font-weight:700;font-size:17px;color:var(--gold2);letter-spacing:.3px;margin:0 4px 14px}
+.brand small{display:block;color:var(--mute);font-weight:400;font-size:12px}
+.prof{margin-bottom:14px}
+.prof h3{margin:0 6px 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--mute)}
+.prof button{display:block;width:100%;text-align:left;background:none;border:0;padding:7px 10px;border-radius:7px;cursor:pointer;color:var(--text)}
+.prof button:hover{background:var(--panel2)}
+.prof button.on{background:linear-gradient(90deg,rgba(232,183,90,.22),rgba(232,183,90,.05));color:var(--gold2);box-shadow:inset 3px 0 0 var(--gold)}
+main{overflow:auto;padding:20px 26px 40px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.field label{display:block;font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+select,input[type=number],input[type=text]{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;outline:none}
+select:focus,input:focus{border-color:var(--gold)}
+#goal{min-width:380px}
+.qty{width:80px}.lvlnum{width:64px}
+.chk{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding-bottom:7px}
+.chk input{accent-color:var(--gold);width:16px;height:16px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card .k{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.8px}
+.card .v{font-size:20px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.card .v.gold{color:var(--gold2)}
+.warn{background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#fecaca;border-radius:10px;padding:10px 14px;margin:12px 0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-top:16px;overflow:hidden}
+section>header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+section>header h2{margin:0;font-size:15px}
+section>header .sp{flex:1}
+section>header .hint{color:var(--mute);font-size:12px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer}
+.btn:hover{border-color:var(--gold);color:var(--gold2)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:7px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--mute);font-weight:600;background:var(--panel2);position:sticky;top:0}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+td:first-child{min-width:300px}
+tr:hover td{background:rgba(255,255,255,.02)}
+td.num{font-variant-numeric:tabular-nums}
+td .en{display:block;color:var(--mute);font-size:11px}
+td input[type=number]{width:96px;text-align:right;padding:4px 7px}
+td input.price{width:120px}
+.big{font-weight:700;color:var(--gold2)}
+.ok{color:var(--green)}.miss{color:var(--red)}.mute{color:var(--mute)}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;border:1px solid var(--line);color:var(--mute);margin-left:6px;vertical-align:1px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+tfoot td{font-weight:700;background:var(--panel2)}
+.note{color:var(--mute);font-size:12px;margin-top:14px;line-height:1.6}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--gold);color:#1b1305;padding:9px 14px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">AION 2 · Craft<small>Calculateur de matériaux</small></div>
+    <div id="types"></div>
+  </aside>
+  <main>
+    <div class="controls">
+      <div class="field"><label>Objet à fabriquer</label><select id="goal"></select></div>
+      <div class="field"><label>Quantité</label><input id="qty" class="qty" type="number" min="1" value="1"></div>
+      <div class="field"><label>Niveau du métier</label>
+        <select id="rank"><option value="nov">Novice</option><option value="pro">Professionnel</option></select>
+        <input id="lvlnum" class="lvlnum" type="number" min="1" max="50" value="50">
+      </div>
+      <div class="field"><label>Marge de sécurité</label><select id="margin"><option value="0">Aucune</option><option value="10">+10 %</option><option value="20">+20 %</option><option value="30">+30 %</option><option value="50">+50 %</option></select></div>
+      <label class="chk" title="Calculer les lingots, cornes, écailles, cuirs, décorations… à partir des matières brutes"><input id="decomp" type="checkbox" checked> Décomposer les composants</label>
+    </div>
+
+    <div id="warn"></div>
+    <div class="summary" id="summary"></div>
+
+    <section>
+      <header><h2>Matériaux à réunir</h2><span class="hint">Saisis ton stock et tes prix : ils sont enregistrés.</span><span class="sp"></span>
+        <button class="btn" id="copy">Copier la liste</button><button class="btn" id="clearStock">Vider le stock</button></header>
+      <div style="overflow:auto"><table id="mats"></table></div>
+    </section>
+
+    <section>
+      <header><h2>Étapes de craft</h2><span class="hint">Coche « Acheter » pour un objet que tu prends à l'HdV au lieu de le fabriquer.</span></header>
+      <div style="overflow:auto"><table id="steps"></table></div>
+    </section>
+
+    <div class="note">
+      Les quantités sont des <b>moyennes</b> (espérance mathématique) : selon ta chance, il en faudra plus ou moins — la marge de sécurité sert à ça.
+      Pour passer au palier suivant il faut la version <b>éclatante</b>, obtenue par le combo (25 %). Chaque palier Noir et Sombre demande en plus un nouvel objet de maître éclatant (or), compté automatiquement.
+      Taux de réussite et recettes : relevés de guidemmo.com. Prix par défaut : relevé du <span id="pdate"></span>, à adapter à ton serveur.
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="engine.js"></script>
+<script>
+(function(){
+var D, E = window.AionEngine;
+var PROF = {blacksmithing:'Forge d\'armes', alchemy:'Alchimie', jewelcrafting:'Artisanat', tailoring:'Forge d\'armures'};
+var TIER = {w:'Palier 1 · Orichalque', e:'Palier 2 · Expert', a:'Palier 3 · Maître', s1:'Étoilé · iLvl 62', s1s:'Étoilé · iLvl 70', s2:'Noir · iLvl 78', s2s:'Noir · iLvl 86', s3:'Sombre · iLvl 94', s3s:'Sombre · iLvl 102'};
+var COL = {w:'var(--w)', e:'var(--e)', a:'var(--a)', s1:'var(--s1)', s1s:'var(--s1)', s2:'var(--s2)', s2s:'var(--s2)', s3:'var(--s3)', s3s:'var(--s3)'};
+var S = {type:'sword', goal:null, qty:1, lvl:100, decompose:true, margin:0, stock:{}, prices:{}, buy:{}};
+var $ = function(id){return document.getElementById(id);};
+var fr = function(n){return (D.fr && D.fr[n]) || n;};
+var esc = function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+var fmtN = function(x,d){ if(!isFinite(x)) return '∞'; return x.toLocaleString('fr-FR',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); };
+var kinah = function(x){ if(!isFinite(x)) return '—'; return Math.round(x).toLocaleString('fr-FR'); };
+var lvName = function(l){ return l>50 ? 'Professionnel '+(l-50) : 'Novice '+l; };
+var price = function(n){ var v = S.prices[n]; if (v!=null && v!=='') return +v; return D.prices[n] || 0; };
+
+/* ---------- persistance ---------- */
+// Version bureau (exécutable Go sur 127.0.0.1) : état enregistré sur disque via /api.
+// Version web (GitHub Pages) : état enregistré uniquement dans le navigateur (localStorage).
+var DESKTOP = location.hostname==='127.0.0.1';
+var saveT;
+function save(){
+  clearTimeout(saveT);
+  saveT = setTimeout(function(){
+    var body = JSON.stringify(S);
+    try{ localStorage.setItem('aion2-craft', body); }catch(e){}
+    if(DESKTOP) fetch('api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:body}).catch(function(){});
+  }, 300);
+}
+function load(){
+  return (DESKTOP ? fetch('api/state') : Promise.reject(0)).then(function(r){ if(!r.ok) throw 0; return r.json(); })
+    .catch(function(){ try{ return JSON.parse(localStorage.getItem('aion2-craft')||'null'); }catch(e){ return null; } })
+    .then(function(s){ if(s && typeof s==='object') for (var k in S) if (s[k]!=null) S[k]=s[k]; });
+}
+
+/* ---------- UI ---------- */
+function buildTypes(){
+  var by = {};
+  Object.keys(D.types).forEach(function(t){ var p=D.types[t][0]; (by[p]=by[p]||[]).push(t); });
+  $('types').innerHTML = ['blacksmithing','alchemy','jewelcrafting','tailoring'].map(function(p){
+    return '<div class="prof"><h3>'+PROF[p]+'</h3>'+by[p].map(function(t){
+      return '<button data-t="'+t+'">'+esc(D.types[t][1])+'</button>';}).join('')+'</div>';
+  }).join('');
+  $('types').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-t]'); if(!b) return;
+    var oldIdx = goalIndex();
+    S.type=b.getAttribute('data-t');
+    var g = E.goals(D,S.type); S.goal = g[Math.min(oldIdx, g.length-1)].name;
+    save(); fillGoals(); render();
+  });
+}
+function goalIndex(){ var g=E.goals(D,S.type); for (var i=0;i<g.length;i++) if(g[i].name===S.goal) return i; return g.length-1; }
+function fillGoals(){
+  var g = E.goals(D,S.type);
+  if (!g.some(function(x){return x.name===S.goal;})) S.goal = g[g.length-1].name;
+  $('goal').innerHTML = g.map(function(x){
+    var lbl = TIER[x.k] + (/^(w|e|a)$/.test(x.k) ? (x.splendent?' · éclatant':' · normal') : '');
+    return '<option value="'+esc(x.name)+'"'+(x.name===S.goal?' selected':'')+'>'+esc(fr(x.name))+'  —  '+lbl+'</option>';
+  }).join('');
+}
+function syncControls(){
+  [].forEach.call(document.querySelectorAll('#types button'),function(b){ b.classList.toggle('on', b.getAttribute('data-t')===S.type); });
+  $('qty').value = S.qty;
+  $('rank').value = S.lvl>50 ? 'pro' : 'nov';
+  $('lvlnum').value = S.lvl>50 ? S.lvl-50 : S.lvl;
+  $('margin').value = String(S.margin);
+  $('decomp').checked = !!S.decompose;
+}
+function readLvl(){
+  var n = Math.max(1, Math.min(50, parseInt($('lvlnum').value,10)||1));
+  S.lvl = ($('rank').value==='pro' ? 50 : 0) + n;
+}
+
+var last;
+function render(){
+  syncControls();
+  var r = last = E.compute(D,{type:S.type, goal:S.goal, qty:Math.max(1,+S.qty||1), lvl:S.lvl, decompose:S.decompose, buy:S.buy, stock:S.stock, margin:+S.margin});
+  // avertissements
+  var w = '';
+  if (r.blocked.length) w = '<div class="warn">Niveau de métier insuffisant pour : <b>'+r.blocked.map(function(n){return esc(fr(n));}).join(', ')+'</b>. Monte ton niveau ou coche « Acheter » sur ces objets.</div>';
+  $('warn').innerHTML = w;
+
+  // matériaux
+  var leaves = r.leaves.slice().sort(function(a,b){ return (a.bought-b.bought) || fr(a.n).localeCompare(fr(b.n),'fr'); });
+  var total=0, totalNet=0, missing=0, noPrice=0;
+  var rows = leaves.map(function(x){
+    var p = price(x.n), toBuy = Math.ceil(x.net-1e-9), cost = toBuy*p;
+    total += Math.ceil(x.need-1e-9)*p; totalNet += cost; if (toBuy>0) missing++; if (toBuy>0 && !p) noPrice++;
+    return '<tr><td>'+esc(fr(x.n))+(x.bought?'<span class="tag">acheté</span>':'')+'<span class="en">'+esc(x.n)+'</span></td>'+
+      '<td class="num mute">'+fmtN(x.need,1)+'</td>'+
+      '<td class="num big">'+fmtN(Math.ceil(x.need-1e-9))+'</td>'+
+      '<td><input type="number" min="0" data-stock="'+esc(x.n)+'" value="'+(S.stock[x.n]||'')+'" placeholder="0"></td>'+
+      '<td class="num '+(toBuy>0?'miss':'ok')+'">'+(toBuy>0?fmtN(toBuy):'✓')+'</td>'+
+      '<td><input type="number" min="0" class="price" data-price="'+esc(x.n)+'" value="'+(S.prices[x.n]!=null&&S.prices[x.n]!==''?S.prices[x.n]:'')+'" placeholder="'+(D.prices[x.n]||0)+'"></td>'+
+      '<td class="num">'+(toBuy>0 && !p ? '<span class="miss">prix ?</span>' : kinah(cost))+'</td></tr>';
+  }).join('');
+  $('mats').innerHTML = '<thead><tr><th>Matériau</th><th>Moyenne</th><th>À prévoir</th><th>En stock</th><th>Manquant</th><th>Prix unitaire (kinah)</th><th>Coût manquant</th></tr></thead><tbody>'+rows+
+    '</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td class="num">'+missing+' manquant(s)</td><td></td><td class="num">'+kinah(totalNet)+'</td></tr></tfoot>';
+
+  // étapes
+  var totalCrafts = 0;
+  var srows = r.steps.map(function(s){
+    totalCrafts += isFinite(s.crafts) ? s.crafts : 0;
+    var isGoal = s.n===S.goal, col = s.kind==='inter' ? 'var(--mute)' : COL[s.k];
+    var type = s.kind==='inter' ? 'Composant' : TIER[s.k] + (s.transfer?' · transfert':'');
+    var succ = s.kind==='inter' ? '—' : s.transfer ? '100 %' : (s.succ*100).toFixed(1).replace('.',',')+' %' + (s.comboSucc!=null && s.splendent ? ' <span class="mute">(éclatant '+(s.comboSucc*100).toFixed(1).replace('.',',')+' %)</span>' : '');
+    var lv = s.lv!=null ? lvName(s.lv) : '—';
+    var crafts = s.transfer ? fmtN(s.crafts,2) : fmtN(s.crafts,1);
+    return '<tr><td><span class="dot" style="background:'+col+'"></span>'+esc(fr(s.n))+(isGoal?'<span class="tag" style="color:var(--gold2);border-color:var(--gold)">objectif</span>':'')+'<span class="en">'+esc(s.n)+'</span></td>'+
+      '<td>'+type+'</td><td class="num">'+lv+'</td><td class="num">'+succ+'</td>'+
+      '<td class="num">'+fmtN(s.produce, s.produce%1?2:0)+'</td><td class="num big">'+crafts+'</td>'+
+      '<td><input type="number" min="0" data-stock="'+esc(s.n)+'" value="'+(S.stock[s.n]||'')+'" placeholder="0"></td>'+
+      '<td style="text-align:center">'+(isGoal?'':'<label class="chk" style="justify-content:center;padding:0"><input type="checkbox" data-buy="'+esc(s.n)+'"></label>')+'</td></tr>';
+  }).join('');
+  // objets marqués "acheter" (devenus feuilles) : permettre de décocher
+  var bought = Object.keys(S.buy).filter(function(n){ return S.buy[n] && r.leaves.some(function(l){return l.n===n;}); });
+  srows += bought.map(function(n){
+    return '<tr><td><span class="dot" style="background:var(--mute)"></span>'+esc(fr(n))+'<span class="tag">acheté à l\'HdV</span><span class="en">'+esc(n)+'</span></td><td class="mute">voir matériaux</td><td></td><td></td><td></td><td></td><td></td>'+
+      '<td style="text-align:center"><label class="chk" style="justify-content:center;padding:0"><input type="checkbox" data-buy="'+esc(n)+'" checked></label></td></tr>';
+  }).join('');
+  $('steps').innerHTML = '<thead><tr><th>Objet</th><th>Type</th><th>Niv. recette</th><th>Réussite</th><th>À obtenir</th><th>Crafts estimés</th><th>En stock</th><th>Acheter</th></tr></thead><tbody>'+srows+'</tbody>';
+
+  var goalStep = r.steps.filter(function(s){return s.n===S.goal;})[0];
+  $('summary').innerHTML =
+    card('Objectif', esc(fr(S.goal)) + (S.qty>1?' ×'+S.qty:''), '', 'font-size:15px') +
+    card('Niveau du métier', lvName(S.lvl)) +
+    card('Crafts estimés au total', fmtN(totalCrafts,0)) +
+    card('Matériaux différents', r.leaves.length) +
+    card('Coût du manquant (kinah)', kinah(totalNet) + (noPrice?' <span class="miss" style="font-size:12px">+ '+noPrice+' prix à saisir</span>':''), 'gold') +
+    card('Coût total sans stock (kinah)', kinah(total));
+}
+function card(k,v,cls,style){ return '<div class="card"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" style="'+(style||'')+'">'+v+'</div></div>'; }
+
+function toast(t){ var el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},1600); }
+
+function bind(){
+  $('goal').addEventListener('change',function(){ S.goal=this.value; save(); render(); });
+  $('qty').addEventListener('input',function(){ S.qty=Math.max(1,parseInt(this.value,10)||1); save(); render(); });
+  $('rank').addEventListener('change',function(){ readLvl(); save(); render(); });
+  $('lvlnum').addEventListener('change',function(){ readLvl(); save(); render(); });
+  $('margin').addEventListener('change',function(){ S.margin=+this.value; save(); render(); });
+  $('decomp').addEventListener('change',function(){ S.decompose=this.checked; save(); render(); });
+  // stock/prix : on recalcule au "change" pour ne pas perdre le focus pendant la saisie
+  document.addEventListener('change',function(e){
+    var t=e.target, n;
+    if ((n=t.getAttribute('data-stock'))!=null){ var v=parseFloat(t.value); if(v>0) S.stock[n]=v; else delete S.stock[n]; save(); render(); }
+    else if ((n=t.getAttribute('data-price'))!=null){ if(t.value==='') delete S.prices[n]; else S.prices[n]=Math.max(0,+t.value); save(); render(); }
+    else if ((n=t.getAttribute('data-buy'))!=null){ if(t.checked) S.buy[n]=true; else delete S.buy[n]; save(); render(); }
+  });
+  document.addEventListener('keydown',function(e){ if(e.key==='Enter' && e.target.matches('td input')) e.target.blur(); });
+  $('clearStock').addEventListener('click',function(){ if(!Object.keys(S.stock).length) return; if(confirmClear()){ S.stock={}; save(); render(); toast('Stock vidé'); } });
+  $('copy').addEventListener('click',function(){
+    if(!last) return;
+    var lines = ['AION 2 — '+fr(S.goal)+(S.qty>1?' ×'+S.qty:'')+' ('+lvName(S.lvl)+')',''];
+    last.leaves.forEach(function(x){ var b=Math.ceil(x.net-1e-9); if(b>0) lines.push(b+' × '+fr(x.n)); });
+    var txt = lines.join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function(){toast('Liste copiée');},function(){
+      var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Liste copiée'); });
+  });
+}
+var clearArmed=0;
+function confirmClear(){ var now=Date.now(); if(now-clearArmed<2500) return true; clearArmed=now; toast('Clique encore pour confirmer'); return false; }
+
+/* ---------- vie de l'application (fermeture de la fenêtre -> arrêt du serveur) ---------- */
+if(DESKTOP){
+  var heartbeat=function(){ fetch('api/ping',{method:'POST'}).catch(function(){}); };
+  setInterval(heartbeat, 5000); heartbeat();
+  window.addEventListener('pagehide',function(){ try{ navigator.sendBeacon('api/bye'); }catch(e){} });
+}
+
+fetch('data.json').then(function(r){return r.json();}).then(function(d){
+  D=d; $('pdate').textContent = new Date(D.pricesDate).toLocaleDateString('fr-FR');
+  return load();
+}).then(function(){
+  if(!D.chains[S.type]) S.type='sword';
+  buildTypes(); fillGoals(); bind(); render();
+});
+})();
+</script>
+</body>
+</html>
