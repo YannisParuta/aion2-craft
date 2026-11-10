@@ -170,6 +170,7 @@ body.m-calc .atelier-only{display:none!important}
     <div class="note">
       Les quantités sont des <b>moyennes</b> (espérance mathématique) ; « min. » = s'il n'y a aucun échec et que chaque combo se déclenche : selon ta chance, il en faudra plus ou moins — la marge de sécurité sert à ça.
       Chaque tentative de craft consomme ses ingrédients, y compris l'objet éclatant du palier précédent. Pour passer au palier suivant il faut la version <b>éclatante</b>, obtenue quand le combo (25 %) se déclenche : c'est le jalon de chaque palier. Les objets normaux obtenus sans combo ne servent pas à la suite. Chaque palier Noir et Sombre demande en plus un nouvel objet de maître éclatant (or), compté automatiquement.
+      Paliers du Roi dragon : le craft Étoilé, Noir ou Sombre a 25 % de chances (combo) de donner <b>directement</b> la version éclatante, ce qui saute le transfert vers l'éclatant ; les matériaux de ce transfert sont donc comptés à 75 % en moyenne. Si le combo s'est déclenché, saisis l'éclatant dans ton stock : l'étape disparaît du calcul.
       Taux de réussite et recettes : relevés de guidemmo.com ; chance d'obtenir l'éclatant = réussite × combo 25 % × réussite du combo, confirmée par le wiki AION 2 (Fextralife). Prix par défaut : relevé du <span id="pdate"></span>, à adapter à ton serveur.
     </div>
   </main>
@@ -337,7 +338,10 @@ function render(){
     var type = s.kind==='inter' ? 'Composant' : TIER[s.k] + (s.transfer?' · transfert':'') + (s.comboSucc!=null && s.splendent?' · jalon':'');
     var pct = function(x){ return (x*100).toFixed(1).replace('.',',')+' %'; };
     var isMs = s.comboSucc!=null && s.splendent;
-    var succ = s.kind==='inter' ? '—' : s.transfer ? '100 %' : isMs
+    var succ = s.kind==='inter' ? '—'
+      : s.transfer ? '100 %'+(s.splendent ? '<span class="combo">sauté si le combo (25 %) de l\'étape précédente se déclenche</span>' : '<span class="combo">combo 25 % → éclatant direct</span>')
+      : s.k==='s1' ? (s.succ*100).toFixed(1).replace('.',',')+' %<span class="combo">combo 25 % → éclatant direct</span>'
+      : isMs
       ? '<b>'+pct(s.comboSucc)+'</b> / tentative<span class="combo">craft '+pct(s.succ)+' × combo 25 % × '+pct(s.succ)+'</span>'
       : pct(s.succ);
     var sure = isMs && s.produce>0 ? '<span class="combo">90 % de chances en '+fmtN(E.attemptsFor(s.comboSucc,0.9))+' tentatives / jalon</span>' : '';
@@ -363,7 +367,8 @@ function render(){
   $('road').innerHTML = ms.map(function(s,i){
     var minNeed = Math.ceil(s.minGross-1e-9), minP = Math.ceil(s.minProduce-1e-9), done = minP<=0, avg = s.produce;
     var how = s.comboSucc!=null ? 'combo '+(s.comboSucc*100).toFixed(1).replace('.',',')+' % / tentative · ≈ '+fmtN(s.crafts,1)+' tentatives'
-      : s.transfer ? 'transfert garanti' : 'réussite '+(s.succ*100).toFixed(1).replace('.',',')+' % · ≈ '+fmtN(s.crafts,1)+' tentatives';
+      : s.transfer ? 'transfert garanti'+(s.splendent ? ' · sauté 1 fois sur 4 grâce au combo (≈ '+fmtN(s.perUnit*100,0)+' % des matériaux en moyenne)' : ' · combo 25 % : peut donner l\'éclatant directement')
+      : 'réussite '+(s.succ*100).toFixed(1).replace('.',',')+' % · ≈ '+fmtN(s.crafts,1)+' tentatives'+(s.k==='s1' ? ' · combo 25 % : peut donner l\'éclatant directement' : '');
     var risk = !done && avg-minP > 0.02 ? '<br><span class="s" title="Moyenne en comptant les tentatives ratées">avec les échecs : ≈ '+fmtN(avg,2)+' en moyenne</span>' : '';
     return '<div class="ms'+(done?' done':'')+(s===firstTodo?' next':'')+(s.goal?' goal':'')+'" style="--c:'+COL[s.k]+'" title="'+esc(s.n)+'">'+
       '<span style="flex:1"><span class="t" style="color:'+COL[s.k]+'">'+(i+1)+'. '+esc(fr(s.n))+'</span><br><span class="s">'+(AT && s.type ? esc(D.types[s.type][1])+' · ' : '')+TIER[s.k]+'</span><br>'+
