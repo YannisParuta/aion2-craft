@@ -60,6 +60,16 @@ td input.price{width:120px}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
 tfoot td{font-weight:700;background:var(--panel2)}
 .note{color:var(--mute);font-size:12px;margin-top:14px;line-height:1.6}
+.road{display:flex;flex-wrap:wrap;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.ms{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:9px;padding:8px 11px;min-width:240px;flex:1 1 240px;max-width:380px}
+.ms:hover{border-color:var(--gold)}
+.ms .t{font-size:12.5px;font-weight:600;line-height:1.25}
+.ms .s{font-size:11px;color:var(--mute)}
+.ms.done{opacity:.6}
+.ms.next{box-shadow:0 0 0 1px var(--gold) inset}
+.ms.goal .t:after{content:" ★";color:var(--gold2)}
+tr.done td{opacity:.45}
+td .combo{display:block;font-size:11px;color:var(--mute)}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--gold);color:#1b1305;padding:9px 14px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 </style>
@@ -92,13 +102,15 @@ tfoot td{font-weight:700;background:var(--panel2)}
     </section>
 
     <section>
-      <header><h2>Étapes de craft</h2><span class="hint">Coche « Acheter » pour un objet que tu prends à l'HdV au lieu de le fabriquer.</span></header>
+      <header><h2>Jalons de progression</h2><span class="hint">Chaque palier se valide en obtenant la version <b>éclatante</b> (combo 25 %). Chaque tentative du palier suivant <b>consomme</b> un éclatant : saisis combien tu en as, le calcul s'ajuste.</span></header>
+      <div class="road" id="road"></div>
       <div style="overflow:auto"><table id="steps"></table></div>
+      <div class="note" style="margin:0;padding:10px 16px">Coche « Acheter » pour un objet que tu prends à l'HdV au lieu de le fabriquer.</div>
     </section>
 
     <div class="note">
       Les quantités sont des <b>moyennes</b> (espérance mathématique) : selon ta chance, il en faudra plus ou moins — la marge de sécurité sert à ça.
-      Pour passer au palier suivant il faut la version <b>éclatante</b>, obtenue par le combo (25 %). Chaque palier Noir et Sombre demande en plus un nouvel objet de maître éclatant (or), compté automatiquement.
+      Chaque tentative de craft consomme ses ingrédients, y compris l'objet éclatant du palier précédent. Pour passer au palier suivant il faut la version <b>éclatante</b>, obtenue quand le combo (25 %) se déclenche : c'est le jalon de chaque palier. Les objets normaux obtenus sans combo ne servent pas à la suite. Chaque palier Noir et Sombre demande en plus un nouvel objet de maître éclatant (or), compté automatiquement.
       Taux de réussite et recettes : relevés de guidemmo.com. Prix par défaut : relevé du <span id="pdate"></span>, à adapter à ton serveur.
     </div>
   </main>
@@ -158,9 +170,10 @@ function buildTypes(){
 function goalIndex(){ var g=E.goals(D,S.type); for (var i=0;i<g.length;i++) if(g[i].name===S.goal) return i; return g.length-1; }
 function fillGoals(){
   var g = E.goals(D,S.type);
+  S.goal = E.normalizeGoal(D,S.type,S.goal);
   if (!g.some(function(x){return x.name===S.goal;})) S.goal = g[g.length-1].name;
   $('goal').innerHTML = g.map(function(x){
-    var lbl = TIER[x.k] + (/^(w|e|a)$/.test(x.k) ? (x.splendent?' · éclatant':' · normal') : '');
+    var lbl = TIER[x.k] + (/^(w|e|a)$/.test(x.k) ? ' · jalon (combo 25 %)' : '');
     return '<option value="'+esc(x.name)+'"'+(x.name===S.goal?' selected':'')+'>'+esc(fr(x.name))+'  —  '+lbl+'</option>';
   }).join('');
 }
@@ -208,13 +221,18 @@ function render(){
   var srows = r.steps.map(function(s){
     totalCrafts += isFinite(s.crafts) ? s.crafts : 0;
     var isGoal = s.n===S.goal, col = s.kind==='inter' ? 'var(--mute)' : COL[s.k];
-    var type = s.kind==='inter' ? 'Composant' : TIER[s.k] + (s.transfer?' · transfert':'');
-    var succ = s.kind==='inter' ? '—' : s.transfer ? '100 %' : (s.succ*100).toFixed(1).replace('.',',')+' %' + (s.comboSucc!=null && s.splendent ? ' <span class="mute">(éclatant '+(s.comboSucc*100).toFixed(1).replace('.',',')+' %)</span>' : '');
+    var type = s.kind==='inter' ? 'Composant' : TIER[s.k] + (s.transfer?' · transfert':'') + (s.comboSucc!=null && s.splendent?' · jalon':'');
+    var pct = function(x){ return (x*100).toFixed(1).replace('.',',')+' %'; };
+    var isMs = s.comboSucc!=null && s.splendent;
+    var succ = s.kind==='inter' ? '—' : s.transfer ? '100 %' : isMs
+      ? '<b>'+pct(s.comboSucc)+'</b> / tentative<span class="combo">craft '+pct(s.succ)+' × combo 25 % × '+pct(s.succ)+'</span>'
+      : pct(s.succ);
+    var sure = isMs && s.produce>0 ? '<span class="combo">90 % de chances en '+fmtN(E.attemptsFor(s.comboSucc,0.9))+' tentatives / jalon</span>' : '';
     var lv = s.lv!=null ? lvName(s.lv) : '—';
     var crafts = s.transfer ? fmtN(s.crafts,2) : fmtN(s.crafts,1);
-    return '<tr><td><span class="dot" style="background:'+col+'"></span>'+esc(fr(s.n))+(isGoal?'<span class="tag" style="color:var(--gold2);border-color:var(--gold)">objectif</span>':'')+'<span class="en">'+esc(s.n)+'</span></td>'+
+    return '<tr'+(s.kind==='chain' && s.produce<=0?' class="done"':'')+'><td><span class="dot" style="background:'+col+'"></span>'+esc(fr(s.n))+(isGoal?'<span class="tag" style="color:var(--gold2);border-color:var(--gold)">objectif</span>':'')+'<span class="en">'+esc(s.n)+'</span></td>'+
       '<td>'+type+'</td><td class="num">'+lv+'</td><td class="num">'+succ+'</td>'+
-      '<td class="num">'+fmtN(s.produce, s.produce%1?2:0)+'</td><td class="num big">'+crafts+'</td>'+
+      '<td class="num">'+fmtN(s.produce, s.produce%1?2:0)+'</td><td class="num"><span class="big">'+crafts+'</span>'+sure+'</td>'+
       '<td><input type="number" min="0" data-stock="'+esc(s.n)+'" value="'+(S.stock[s.n]||'')+'" placeholder="0"></td>'+
       '<td style="text-align:center">'+(isGoal?'':'<label class="chk" style="justify-content:center;padding:0"><input type="checkbox" data-buy="'+esc(s.n)+'"></label>')+'</td></tr>';
   }).join('');
@@ -224,7 +242,20 @@ function render(){
     return '<tr><td><span class="dot" style="background:var(--mute)"></span>'+esc(fr(n))+'<span class="tag">acheté à l\'HdV</span><span class="en">'+esc(n)+'</span></td><td class="mute">voir matériaux</td><td></td><td></td><td></td><td></td><td></td>'+
       '<td style="text-align:center"><label class="chk" style="justify-content:center;padding:0"><input type="checkbox" data-buy="'+esc(n)+'" checked></label></td></tr>';
   }).join('');
-  $('steps').innerHTML = '<thead><tr><th>Objet</th><th>Type</th><th>Niv. recette</th><th>Réussite</th><th>À obtenir</th><th>Crafts estimés</th><th>En stock</th><th>Acheter</th></tr></thead><tbody>'+srows+'</tbody>';
+  $('steps').innerHTML = '<thead><tr><th>Objet</th><th>Type</th><th>Niv. recette</th><th>Réussite</th><th>À obtenir</th><th>Tentatives estimées</th><th>En stock</th><th>Acheter</th></tr></thead><tbody>'+srows+'</tbody>';
+
+  // frise des jalons (du premier palier jusqu'à l'objectif)
+  var ms = r.steps.filter(function(s){ return s.kind==='chain' && s.k && !(S.buy[s.n]); });
+  var firstTodo = ms.filter(function(s){ return s.produce>0; })[0];
+  $('road').innerHTML = ms.map(function(s,i){
+    var need = Math.ceil(s.gross-1e-9), done = s.produce<=0;
+    var how = s.comboSucc!=null ? 'combo '+(s.comboSucc*100).toFixed(1).replace('.',',')+' % / tentative · ≈ '+fmtN(s.crafts,1)+' tentatives'
+      : s.transfer ? 'transfert garanti' : '≈ '+fmtN(s.crafts,1)+' tentatives';
+    return '<div class="ms'+(done?' done':'')+(s===firstTodo?' next':'')+(s.n===S.goal?' goal':'')+'" style="--c:'+COL[s.k]+'" title="'+esc(s.n)+'">'+
+      '<span style="flex:1"><span class="t">'+(i+1)+'. '+esc(fr(s.n))+'</span><br><span class="s">'+TIER[s.k]+'</span><br>'+
+      '<span class="s">'+(done?'<span class="ok">✓ couvert par ton stock</span>':'à obtenir : <b style="color:var(--text)">≈ '+fmtN(s.produce, s.produce%1?1:0)+'</b> · '+how)+'</span></span>'+
+      '<span style="text-align:center"><span class="s">en stock</span><br><input type="number" min="0" data-stock="'+esc(s.n)+'" value="'+(S.stock[s.n]||'')+'" placeholder="0" style="width:58px;padding:3px 5px;text-align:right"><span class="s"> / '+need+'</span></span></div>';
+  }).join('');
 
   var goalStep = r.steps.filter(function(s){return s.n===S.goal;})[0];
   $('summary').innerHTML =

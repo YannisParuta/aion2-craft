@@ -1,5 +1,5 @@
 /* Moteur de calcul — même modèle que le calculateur guidemmo.com
-   - Paliers 1-3 (w/e/a) : il faut la version éclatante -> réussite p, combo 25 %, réussite du combo p : essais = 1/(p·0,25·p)
+   - Paliers 1-3 (w/e/a) : le jalon est la version éclatante (requise par le palier suivant) -> réussite p, combo 25 %, réussite du combo p : essais = 1/(p·0,25·p)
    - Étoilé (s1) : essais = 1/p
    - Étoilé éclatant (s1s) : 1 Étoilé + (1 - 0,25·p) × ingrédients
    - Noir / Sombre (s2/s3) : transfert garanti : 1 éclatant précédent + ingrédients
@@ -22,10 +22,10 @@
   function goals(D, type) {
     var out = [];
     D.chains[type].forEach(function (st, i) {
-      if (/^(w|e|a)$/.test(st.k)) {
-        out.push({ name: st.n, step: i, k: st.k, splendent: false });
-        out.push({ name: st.combo, step: i, k: st.k, splendent: true });
-      } else out.push({ name: st.n, step: i, k: st.k, splendent: /s$/.test(st.k) });
+      // Paliers 1-3 : le jalon est la version éclatante (obtenue par le combo),
+      // c'est elle que demande le palier suivant. L'objet normal n'est pas un objectif.
+      if (/^(w|e|a)$/.test(st.k)) out.push({ name: st.combo, step: i, k: st.k, splendent: true, milestone: true });
+      else out.push({ name: st.n, step: i, k: st.k, splendent: /s$/.test(st.k), milestone: true });
     });
     return out;
   }
@@ -61,6 +61,19 @@
     opts : { type, goal, qty, lvl, decompose, buy:{nom:true}, stock:{nom:n}, margin }
     -> { leaves:[{n,need,stock,net}], steps:[{n,produce,crafts,succ,...}], blocked:[noms] }
   */
+  /* Ancien objectif "objet normal" d'un palier 1-3 -> sa version éclatante */
+  function normalizeGoal(D, type, name) {
+    var st = D.chains[type].filter(function (x) { return x.n === name && /^(w|e|a)$/.test(x.k); })[0];
+    return st ? st.combo : name;
+  }
+
+  /* Tentatives nécessaires pour avoir `conf` (ex. 0,9) de chances d'au moins une réussite à la probabilité q */
+  function attemptsFor(q, conf) {
+    if (!(q > 0)) return Infinity;
+    if (q >= 1) return 1;
+    return Math.ceil(Math.log(1 - conf) / Math.log(1 - q));
+  }
+
   function compute(D, o) {
     var R = recipes(D, o.type, o.lvl);
     var isCraft = function (n) {
@@ -96,6 +109,6 @@
     return { leaves: leaves, steps: steps, blocked: blocked, recipes: R };
   }
 
-  root.AionEngine = { chance: chance, target: target, goals: goals, recipes: recipes, compute: compute };
+  root.AionEngine = { chance: chance, target: target, goals: goals, normalizeGoal: normalizeGoal, attemptsFor: attemptsFor, recipes: recipes, compute: compute };
   if (typeof module !== 'undefined') module.exports = root.AionEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
