@@ -77,6 +77,9 @@
 
   function compute(D, o) {
     var R = recipes(D, o.type, o.lvl, o.ideal);
+    // Plan "sans échec" calculé d'abord : un jalon dont le stock couvre ce minimum est considéré comme atteint
+    var min = {};
+    if (!o.ideal) compute(D, Object.assign({}, o, { ideal: true })).steps.forEach(function (x) { min[x.n] = x; });
     var isCraft = function (n) {
       if (!R[n]) return false;
       if (o.buy && o.buy[n] && n !== o.goal) return false;
@@ -95,6 +98,7 @@
     var leaves = [], steps = [], blocked = [];
     order.forEach(function (n) {
       var g = gross[n] || 0, st = (o.stock && +o.stock[n]) || 0;
+      if (R[n] && R[n].kind === 'chain' && min[n] && st > 0 && st >= Math.ceil(min[n].gross - 1e-9)) st = Math.max(st, g);
       var net = Math.max(0, g - st);
       if (isCraft(n)) {
         var r = R[n];
@@ -108,9 +112,11 @@
     });
     steps.reverse(); // feuilles -> objectif
     if (!o.ideal) {
-      var best = compute(D, Object.assign({}, o, { ideal: true })), min = {};
-      best.steps.forEach(function (x) { min[x.n] = x.produce; });
-      steps.forEach(function (x) { x.minProduce = min[x.n] != null ? min[x.n] : x.produce; });
+      steps.forEach(function (x) {
+        var m = min[x.n];
+        x.minProduce = m ? m.produce : x.produce;   // reste à obtenir sans aucun échec
+        x.minGross = m ? m.gross : x.gross;         // besoin total sans aucun échec
+      });
     }
     return { leaves: leaves, steps: steps, blocked: blocked, recipes: R };
   }

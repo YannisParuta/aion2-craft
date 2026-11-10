@@ -11,7 +11,7 @@ Calculateur de matériaux de fabrication pour AION 2 (forge, alchimie, joailleri
 | Fichier | Rôle |
 |---|---|
 | `web/index.html`, `web/engine.js` | Interface et moteur de calcul |
-| `gen_data.py` + `fr.json` | Génèrent `data.json` (recettes, prix, traductions) |
+| `gen_data.py` + `fr.json` | Génèrent `data.json` (recettes, prix, traductions, provenance des matériaux) |
 | `main.go`, `res.rc`, `icon.ico` | Exécutable bureau |
 
 ## Développement
@@ -26,3 +26,8 @@ Compiler l'exécutable Windows :
 ```bash
 GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui" -o AION2-Craft.exe
 ```
+
+## Sources
+
+- Recettes, taux de réussite et prix par défaut : [guidemmo.com](https://guidemmo.com/calculateur-craft-aion-2-en/)
+- Mécanique du combo et provenance des matériaux : [wiki AION 2 (Fextralife)](https://aion2.wiki.fextralife.com/Crafting)

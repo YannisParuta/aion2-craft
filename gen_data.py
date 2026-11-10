@@ -252,6 +252,61 @@ TABS = {
 PRICES = {"Wrathful Mind":479000,"Wrathful Will":3000000,"Wrathful Ego":209000,"Odyle":6400,"Fine Odyle":5494,"Pure Odyle":120000,"Radiant Odyle":300000,"Refining Stone":6700,"Expert's Refining Stone":94500,"Artisan's Refining Stone":300000,"Artisan's Ultimate Refining Stone":259000,"Thick Balaur Horn":1700,"Hard Balaur Horn":1150,"Durable Balaur Horn":1000,"Thick Balaur Scale":5700,"Hard Balaur Scale":2400,"Durable Balaur Scale":1888,"Thick Balaur Leather":1219,"Hard Balaur Leather":900,"Durable Balaur Leather":1260,"Spiritstone":9480,"Orichalcum Ore":150,"Fine Orichalcum Ore":200,"Pure Orichalcum Ore":4307,"Radiant Orichalcum Ore":230000,"Asvata Log":5580,"Fine Asvata Log":400,"Pure Asvata Log":2000,"Radiant Asvata Log":420000,"Sapphire Gemstone":5000,"Fine Sapphire Gemstone":3500,"Pure Sapphire Gemstone":84000,"Radiant Sapphire Gemstone":100000,"Diamond Gemstone":170,"Fine Diamond Gemstone":200,"Pure Diamond Gemstone":6800,"Radiant Diamond Gemstone":220000,"Ruby Gemstone":190,"Fine Ruby Gemstone":290,"Pure Ruby Gemstone":7500,"Radiant Ruby Gemstone":225000,"Raw Leather":5776,"Orichalcum Solvent (Bound)":400,"Abrasive (Bound)":400,"Catalyst (Bound)":400,"Sandpaper (Bound)":400,"Zircon Hammer (Bound)":4650,"Lazuli Hammer (Bound)":5600,"Moonstone Hammer (Bound)":6550,"Lesser Dragon Scale Hardener (Bound)":4650,"Intermediate Dragon Scale Hardener (Bound)":5600,"Superior Dragon Scale Hardener (Bound)":6550,"Lesser Dragon Leather Softener (Bound)":4650,"Intermediate Dragon Leather Softener (Bound)":5600,"Superior Dragon Leather Softener (Bound)":6550}
 
 
+# Provenance des matériaux de base, relevée sur le wiki AION 2 (aion2.wiki.fextralife.com, fiches objet, nov. 2026).
+# Noms de zones/donjons laissés en anglais (comme sur le wiki).
+GROUPS = [
+    ["pnj", "Marchand PNJ (lié)", "Prix fixe chez le marchand de métier, Verteron ou Altgard"],
+    ["essence", "Extraction d'essence", "Récolte sur les nœuds de minerai, de gemmes et de bois"],
+    ["od", "Extraction d'Od", "Récolte en vol sur les nœuds d'Od"],
+    ["butin", "Butin de monstres", "Lâché par les monstres des zones ouvertes"],
+    ["raffinage", "Pierres de raffinage", "Monstres, donjons, coffres et boutique de saison"],
+    ["balaur", "Donjons : matériaux Balaur", "Donjons et Coffre de sélection de matériaux Balaur"],
+    ["rage", "Donjons Conquête et raid : matériaux de rage", "Donjons en mode Conquête, raid Ludra, boutique de saison"],
+]
+_SHOP = {"Blacksmith": "marchand de forge d'armes", "Armorsmith": "marchand de forge d'armures",
+         "Handicraft": "marchand d'artisanat", "Alchemy": "marchand d'alchimie"}
+_PNJ = {  # nom : marchands
+    "Orichalcum Solvent (Bound)": "Blacksmith Armorsmith", "Abrasive (Bound)": "Handicraft", "Sandpaper (Bound)": "Handicraft",
+    "Catalyst (Bound)": "Handicraft Alchemy", "Zircon Hammer (Bound)": "Blacksmith", "Lazuli Hammer (Bound)": "Blacksmith",
+    "Moonstone Hammer (Bound)": "Blacksmith",
+    "Lesser Dragon Scale Hardener (Bound)": "Handicraft Alchemy", "Intermediate Dragon Scale Hardener (Bound)": "Handicraft Alchemy",
+    "Superior Dragon Scale Hardener (Bound)": "Handicraft Alchemy",
+    "Lesser Dragon Leather Softener (Bound)": "Armorsmith", "Intermediate Dragon Leather Softener (Bound)": "Armorsmith",
+    "Superior Dragon Leather Softener (Bound)": "Armorsmith",
+}
+_BALAUR = {"Thick": "Krao Cave, Draupnir", "Hard": "Urugugu Canyon, Vakron Sky Island", "Durable": "Fire Temple, Ferocious Horn Den"}
+_SEASON = {"Refining Stone": 40, "Expert's Refining Stone": 400, "Artisan's Refining Stone": 4000,
+           "Artisan's Ultimate Refining Stone": 4800, "Wrathful Mind": 6250, "Wrathful Will": 7500, "Wrathful Ego": 8750}
+_RAGE = {"Wrathful Mind": "les 6 donjons (Conquête)", "Wrathful Will": "Urugugu Canyon, Fire Temple, Vakron Sky Island, Ferocious Horn Den (Conquête)",
+         "Wrathful Ego": "Fire Temple, Ferocious Horn Den (Conquête)"}
+
+
+def _k(x):
+    return f"{x:,}".replace(",", "\u202f")
+
+
+def source(n):
+    """-> [groupe, détail] pour un matériau de base"""
+    if n in _PNJ:
+        who = " / ".join(_SHOP[k] for k in _PNJ[n].split())
+        return ["pnj", f"{who} · {_k(PRICES[n])} kinah"]
+    if n.endswith("Odyle"):
+        return ["od", "Verteron, Altgard, Chaotic Lower Reshanta" + (" · boutique de saison 6 000 pièces" if n == "Radiant Odyle" else "")]
+    if n.endswith(("Ore", "Gemstone")):
+        return ["essence", ("Minerai" if n.endswith("Ore") else "Gemmes") + " · Verteron, Altgard"]
+    if n.endswith("Log"):
+        return ["essence", "Bois · " + ("Verteron" if "Yggdrasil" in n else "Altgard")]
+    if n in ("Raw Leather", "Spiritstone"):
+        return ["butin", "Monstres d'Altgard, Verteron, Chaotic Lower Reshanta · Shulak Loot Bundle"]
+    if n.endswith("Refining Stone"):
+        return ["raffinage", f"Monstres, donjons, Refining Stone Chest · boutique de saison {_k(_SEASON[n])} pièces de serment"]
+    if n.startswith(tuple(_BALAUR)) and "Balaur" in n:
+        return ["balaur", _BALAUR[n.split()[0]]]
+    if n in _RAGE:
+        return ["rage", f"{_RAGE[n]}, raid Ludra · boutique de saison {_k(_SEASON[n])} pièces de serment"]
+    raise KeyError("provenance inconnue : " + n)
+
+
 def parse(s):
     return [[p.rsplit("*", 1)[0], int(p.rsplit("*", 1)[1])] for p in s.split("|")]
 
@@ -263,7 +318,10 @@ if __name__ == "__main__":
         chains[t] = [{"n": n, "lv": lv, "in": parse(i), "combo": c, "k": k} for n, lv, i, c, k in rows]
     inter = {k: parse(v) for k, v in INTER.items()}
     data = {"types": TYPES, "chains": chains, "inter": inter, "tabs": TABS, "prices": PRICES,
-            "pricesDate": "2026-10-05", "fr": fr}
+            "pricesDate": "2026-10-05", "fr": fr, "groups": GROUPS}
+    made = {r["n"] for t in chains for r in chains[t]} | {r["combo"] for t in chains for r in chains[t]} | set(inter)
+    raw = sorted({x for t in chains for r in chains[t] for x, _ in r["in"]} | {x for v in inter.values() for x, _ in v})
+    data["sources"] = {n: source(n) for n in raw if n not in made}
     json.dump(data, open("data.json", "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     # empreinte pour vérifier contre la source
     sig = {t: sum(q for r in chains[t] for _, q in r["in"]) for t in chains}

@@ -70,6 +70,18 @@ tfoot td{font-weight:700;background:var(--panel2)}
 .ms.goal .t:after{content:" ★";color:var(--gold2)}
 tr.done td{opacity:.45}
 td .combo{display:block;font-size:11px;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.chip{background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:4px 11px;cursor:pointer;font-size:12.5px}
+.chip b{color:var(--mute);font-weight:600;margin-left:3px}
+.chip:hover{border-color:var(--gold)}
+.chip.on{background:rgba(232,183,90,.16);border-color:var(--gold);color:var(--gold2)}
+tr.grp td{background:var(--panel2);font-weight:700;font-size:13px;border-top:2px solid var(--line)}
+tr.grp td .en{font-weight:400}
+tr.full td{opacity:.6}
+.stockc{display:inline-flex;align-items:center;gap:5px}
+.full-btn{background:var(--panel2);border:1px solid var(--line);border-radius:7px;width:30px;height:30px;cursor:pointer;color:var(--mute);font-weight:700;padding:0}
+.full-btn:hover{border-color:var(--green);color:var(--green)}
+.full-btn.on{background:rgba(74,222,128,.15);border-color:rgba(74,222,128,.5);color:var(--green)}
 .toast{position:fixed;bottom:18px;right:18px;background:var(--gold);color:#1b1305;padding:9px 14px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 </style>
@@ -96,8 +108,9 @@ td .combo{display:block;font-size:11px;color:var(--mute)}
     <div class="summary" id="summary"></div>
 
     <section>
-      <header><h2>Matériaux à réunir</h2><span class="hint">Saisis ton stock et tes prix : ils sont enregistrés.</span><span class="sp"></span>
+      <header><h2>Matériaux à réunir</h2><span class="hint">Groupés par provenance. Saisis ton stock (✓ = complet) et tes prix : ils sont enregistrés.</span><span class="sp"></span>
         <button class="btn" id="copy">Copier la liste</button><button class="btn" id="clearStock">Vider le stock</button></header>
+      <div class="chips" id="mfilter"></div>
       <div style="overflow:auto"><table id="mats"></table></div>
     </section>
 
@@ -123,7 +136,7 @@ var D, E = window.AionEngine;
 var PROF = {blacksmithing:'Forge d\'armes', alchemy:'Alchimie', jewelcrafting:'Artisanat', tailoring:'Forge d\'armures'};
 var TIER = {w:'Palier 1 · Orichalque', e:'Palier 2 · Expert', a:'Palier 3 · Maître', s1:'Étoilé · iLvl 62', s1s:'Étoilé · iLvl 70', s2:'Noir · iLvl 78', s2s:'Noir · iLvl 86', s3:'Sombre · iLvl 94', s3s:'Sombre · iLvl 102'};
 var COL = {w:'var(--w)', e:'var(--e)', a:'var(--a)', s1:'var(--s1)', s1s:'var(--s1)', s2:'var(--s2)', s2s:'var(--s2)', s3:'var(--s3)', s3s:'var(--s3)'};
-var S = {type:'sword', goal:null, qty:1, lvl:100, decompose:true, margin:0, stock:{}, prices:{}, buy:{}};
+var S = {type:'sword', goal:null, qty:1, lvl:100, decompose:true, margin:0, stock:{}, prices:{}, buy:{}, matFilter:''};
 var $ = function(id){return document.getElementById(id);};
 var fr = function(n){return (D.fr && D.fr[n]) || n;};
 var esc = function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
@@ -193,32 +206,53 @@ function readLvl(){
 var last;
 function render(){
   syncControls();
-  var r = last = E.compute(D,{type:S.type, goal:S.goal, qty:Math.max(1,+S.qty||1), lvl:S.lvl, decompose:S.decompose, buy:S.buy, stock:S.stock, margin:+S.margin});
+  var r = E.compute(D,{type:S.type, goal:S.goal, qty:Math.max(1,+S.qty||1), lvl:S.lvl, decompose:S.decompose, buy:S.buy, stock:S.stock, margin:+S.margin});
+  r.leaves = r.leaves.filter(function(x){ return x.need > 1e-9; });
+  last = r;
   // avertissements
   var w = '';
   if (r.blocked.length) w = '<div class="warn">Niveau de métier insuffisant pour : <b>'+r.blocked.map(function(n){return esc(fr(n));}).join(', ')+'</b>. Monte ton niveau ou coche « Acheter » sur ces objets.</div>';
   $('warn').innerHTML = w;
 
-  // matériaux
-  var leaves = r.leaves.slice().sort(function(a,b){ return (a.bought-b.bought) || fr(a.n).localeCompare(fr(b.n),'fr'); });
-  var total=0, totalNet=0, missing=0, noPrice=0;
-  var rows = leaves.map(function(x){
-    var p = price(x.n), toBuy = Math.ceil(x.net-1e-9), cost = toBuy*p;
-    total += Math.ceil(x.need-1e-9)*p; totalNet += cost; if (toBuy>0) missing++; if (toBuy>0 && !p) noPrice++;
-    return '<tr><td>'+esc(fr(x.n))+(x.bought?'<span class="tag">acheté</span>':'')+'<span class="en">'+esc(x.n)+'</span></td>'+
-      '<td class="num mute">'+fmtN(x.need,1)+'</td>'+
-      '<td class="num big">'+fmtN(Math.ceil(x.need-1e-9))+'</td>'+
-      '<td><input type="number" min="0" data-stock="'+esc(x.n)+'" value="'+(S.stock[x.n]||'')+'" placeholder="0"></td>'+
-      '<td class="num '+(toBuy>0?'miss':'ok')+'">'+(toBuy>0?fmtN(toBuy):'✓')+'</td>'+
-      '<td><input type="number" min="0" class="price" data-price="'+esc(x.n)+'" value="'+(S.prices[x.n]!=null&&S.prices[x.n]!==''?S.prices[x.n]:'')+'" placeholder="'+(D.prices[x.n]||0)+'"></td>'+
-      '<td class="num">'+(toBuy>0 && !p ? '<span class="miss">prix ?</span>' : kinah(cost))+'</td></tr>';
+  // matériaux, groupés par provenance
+  var GROUPS = (D.groups||[]).concat([['hdv','Achetés à l\'HdV','Objets de craft que tu as choisi d\'acheter']]);
+  var grpOf = function(n){ return (D.sources && D.sources[n]) ? D.sources[n][0] : 'hdv'; };
+  var total=0, totalNet=0, missing=0, noPrice=0, counts={};
+  r.leaves.forEach(function(x){ var p=price(x.n), toBuy=Math.max(0,Math.ceil(x.net-1e-9)); total+=Math.ceil(x.need-1e-9)*p; totalNet+=toBuy*p;
+    if(toBuy>0) missing++; if(toBuy>0 && !p) noPrice++; var g=grpOf(x.n); counts[g]=(counts[g]||0)+(toBuy>0?1:0); counts[g+'#']=(counts[g+'#']||0)+1; });
+  if (S.matFilter && !counts[S.matFilter+'#']) S.matFilter='';
+  $('mfilter').innerHTML = '<button class="chip'+(!S.matFilter?' on':'')+'" data-mf="">Tous <b>'+r.leaves.length+'</b></button>'+
+    GROUPS.filter(function(g){return counts[g[0]+'#'];}).map(function(g){
+      return '<button class="chip'+(S.matFilter===g[0]?' on':'')+'" data-mf="'+g[0]+'" title="'+esc(g[2])+'">'+esc(g[1])+' <b>'+(counts[g[0]]||0)+'/'+counts[g[0]+'#']+'</b></button>';
+    }).join('');
+  var rows = GROUPS.map(function(g){
+    if (S.matFilter && S.matFilter!==g[0]) return '';
+    var items = r.leaves.filter(function(x){ return grpOf(x.n)===g[0]; })
+      .sort(function(a,b){ return fr(a.n).localeCompare(fr(b.n),'fr'); });
+    if (!items.length) return '';
+    var sub=0, left=0;
+    var body = items.map(function(x){
+      var p = price(x.n), need = Math.ceil(x.need-1e-9), toBuy = Math.max(0,Math.ceil(x.net-1e-9)), cost = toBuy*p;
+      sub += cost; if (toBuy>0) left++;
+      var src = D.sources && D.sources[x.n] ? D.sources[x.n][1] : '';
+      return '<tr'+(toBuy>0?'':' class="full"')+'><td>'+esc(fr(x.n))+'<span class="en">'+esc(x.n)+(src?' · '+esc(src):'')+'</span></td>'+
+        '<td class="num mute">'+fmtN(x.need,1)+'</td>'+
+        '<td class="num big">'+fmtN(need)+'</td>'+
+        '<td><span class="stockc"><input type="number" min="0" data-stock="'+esc(x.n)+'" value="'+(S.stock[x.n]||'')+'" placeholder="0">'+
+          '<button class="full-btn'+(toBuy>0?'':' on')+'" data-full="'+esc(x.n)+'" data-need="'+need+'" title="Stock complet : '+need+'">✓</button></span></td>'+
+        '<td class="num '+(toBuy>0?'miss':'ok')+'">'+(toBuy>0?fmtN(toBuy):'✓')+'</td>'+
+        '<td><input type="number" min="0" class="price" data-price="'+esc(x.n)+'" value="'+(S.prices[x.n]!=null&&S.prices[x.n]!==''?S.prices[x.n]:'')+'" placeholder="'+(D.prices[x.n]||0)+'"></td>'+
+        '<td class="num">'+(toBuy>0 && !p ? '<span class="miss">prix ?</span>' : kinah(cost))+'</td></tr>';
+    }).join('');
+    return '<tr class="grp"><td colspan="4"><span class="g-'+g[0]+'">'+esc(g[1])+'</span><span class="en">'+esc(g[2])+'</span></td>'+
+      '<td class="num">'+(left?'<span class="miss">'+left+' à réunir</span>':'<span class="ok">complet ✓</span>')+'</td><td></td><td class="num">'+kinah(sub)+'</td></tr>'+body;
   }).join('');
-  $('mats').innerHTML = '<thead><tr><th>Matériau</th><th>Moyenne</th><th>À prévoir</th><th>En stock</th><th>Manquant</th><th>Prix unitaire (kinah)</th><th>Coût manquant</th></tr></thead><tbody>'+rows+
-    '</tbody><tfoot><tr><td>Total</td><td></td><td></td><td></td><td class="num">'+missing+' manquant(s)</td><td></td><td class="num">'+kinah(totalNet)+'</td></tr></tfoot>';
+  $('mats').innerHTML = '<thead><tr><th>Matériau · provenance</th><th>Moyenne</th><th>À prévoir</th><th>En stock</th><th>Manquant</th><th>Prix unitaire (kinah)</th><th>Coût manquant</th></tr></thead><tbody>'+rows+
+    '</tbody><tfoot><tr><td>Total'+(S.matFilter?' (tous groupes)':'')+'</td><td></td><td></td><td></td><td class="num">'+missing+' manquant(s)</td><td></td><td class="num">'+kinah(totalNet)+'</td></tr></tfoot>';
 
   // étapes
   var totalCrafts = 0;
-  var srows = r.steps.map(function(s){
+  var srows = r.steps.filter(function(s){ return s.gross > 1e-9 || s.n===S.goal; }).map(function(s){
     totalCrafts += isFinite(s.crafts) ? s.crafts : 0;
     var isGoal = s.n===S.goal, col = s.kind==='inter' ? 'var(--mute)' : COL[s.k];
     var type = s.kind==='inter' ? 'Composant' : TIER[s.k] + (s.transfer?' · transfert':'') + (s.comboSucc!=null && s.splendent?' · jalon':'');
@@ -246,17 +280,17 @@ function render(){
 
   // frise des jalons (du premier palier jusqu'à l'objectif)
   var ms = r.steps.filter(function(s){ return s.kind==='chain' && s.k && !(S.buy[s.n]); });
-  var firstTodo = ms.filter(function(s){ return s.produce>0; })[0];
+  var firstTodo = ms.filter(function(s){ return s.minProduce>0.5; })[0];
   $('road').innerHTML = ms.map(function(s,i){
-    var done = s.produce<=0, minP = Math.ceil(s.minProduce-1e-9), avg = s.produce;
-    var amount = Math.abs(minP-avg)<0.005 ? '<b style="color:var(--text)">'+minP+'</b>'
-      : '<b style="color:var(--text)">'+minP+' min.</b> · ≈ '+fmtN(avg, 2)+' en moyenne';
+    var minNeed = Math.ceil(s.minGross-1e-9), minP = Math.ceil(s.minProduce-1e-9), done = minP<=0, avg = s.produce;
     var how = s.comboSucc!=null ? 'combo '+(s.comboSucc*100).toFixed(1).replace('.',',')+' % / tentative · ≈ '+fmtN(s.crafts,1)+' tentatives'
-      : s.transfer ? 'transfert garanti' : '≈ '+fmtN(s.crafts,1)+' tentatives';
+      : s.transfer ? 'transfert garanti' : 'réussite '+(s.succ*100).toFixed(1).replace('.',',')+' % · ≈ '+fmtN(s.crafts,1)+' tentatives';
+    var risk = !done && avg-minP > 0.02 ? '<br><span class="s" title="Moyenne en comptant les tentatives ratées">avec les échecs : ≈ '+fmtN(avg,2)+' en moyenne</span>' : '';
     return '<div class="ms'+(done?' done':'')+(s===firstTodo?' next':'')+(s.n===S.goal?' goal':'')+'" style="--c:'+COL[s.k]+'" title="'+esc(s.n)+'">'+
       '<span style="flex:1"><span class="t" style="color:'+COL[s.k]+'">'+(i+1)+'. '+esc(fr(s.n))+'</span><br><span class="s">'+TIER[s.k]+'</span><br>'+
-      '<span class="s">'+(done?'<span class="ok">✓ couvert par ton stock</span>':'à obtenir : '+amount+'<br>'+how)+'</span></span>'+
-      '<span style="text-align:center"><span class="s">en stock</span><br><input type="number" min="0" data-stock="'+esc(s.n)+'" value="'+(S.stock[s.n]||'')+'" placeholder="0" style="width:58px;padding:3px 5px;text-align:right"></span></div>';
+      '<span class="s">'+(done?'<span class="ok">'+(minNeed>0?'✓ jalon atteint':'✓ plus nécessaire (jalon suivant atteint)')+'</span>':'à obtenir : <b style="color:var(--text)">'+minP+'</b> · '+how)+'</span>'+risk+'</span>'+
+      '<span style="text-align:center"><span class="s">en stock</span><br><span class="stockc"><input type="number" min="0" data-stock="'+esc(s.n)+'" value="'+(S.stock[s.n]||'')+'" placeholder="0" style="width:50px;padding:3px 5px;text-align:right">'+
+      '<span class="s">/ '+minNeed+'</span><button class="full-btn'+(done?' on':'')+'" data-full="'+esc(s.n)+'" data-need="'+minNeed+'" title="J\'ai les '+minNeed+'">✓</button></span></span></div>';
   }).join('');
 
   var goalStep = r.steps.filter(function(s){return s.n===S.goal;})[0];
@@ -288,10 +322,21 @@ function bind(){
   });
   document.addEventListener('keydown',function(e){ if(e.key==='Enter' && e.target.matches('td input')) e.target.blur(); });
   $('clearStock').addEventListener('click',function(){ if(!Object.keys(S.stock).length) return; if(confirmClear()){ S.stock={}; save(); render(); toast('Stock vidé'); } });
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('[data-full],[data-mf]'); if(!b) return;
+    if (b.hasAttribute('data-mf')){ S.matFilter=b.getAttribute('data-mf'); save(); render(); return; }
+    var n=b.getAttribute('data-full'), need=+b.getAttribute('data-need');
+    if (need>0) S.stock[n]=need; save(); render();
+  });
   $('copy').addEventListener('click',function(){
     if(!last) return;
     var lines = ['AION 2 — '+fr(S.goal)+(S.qty>1?' ×'+S.qty:'')+' ('+lvName(S.lvl)+')',''];
-    last.leaves.forEach(function(x){ var b=Math.ceil(x.net-1e-9); if(b>0) lines.push(b+' × '+fr(x.n)); });
+    var G=(D.groups||[]).concat([['hdv','Achetés à l\'HdV']]);
+    G.forEach(function(g){
+      var it=last.leaves.filter(function(x){ return ((D.sources&&D.sources[x.n])?D.sources[x.n][0]:'hdv')===g[0] && Math.max(0,Math.ceil(x.net-1e-9))>0; });
+      if(!it.length) return; lines.push('— '+g[1]+' —');
+      it.forEach(function(x){ lines.push(Math.max(0,Math.ceil(x.net-1e-9))+' × '+fr(x.n)); }); lines.push('');
+    });
     var txt = lines.join('\n');
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function(){toast('Liste copiée');},function(){
       var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Liste copiée'); });
