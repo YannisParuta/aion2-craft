@@ -31,8 +31,9 @@
   }
 
   /* Recettes "attendues" (quantités moyennes par unité produite) */
-  function recipes(D, type, L) {
-    var R = {}, ch = D.chains[type], pStar = 1;
+  function recipes(D, type, L, ideal) {
+    var R = {}, ch = D.chains[type], pStar = 1, COMBO = ideal ? 1 : 0.25;
+    var chance_ = ideal ? function (D, lv, k, L) { return chance(D, lv, k, L) > 0 ? 1 : 0; } : chance;
     Object.keys(D.inter).forEach(function (n) {
       R[n] = { comps: D.inter[n].map(function (x) { return [x[0], x[1]]; }), crafts: 1, succ: 1, kind: 'inter' };
     });
@@ -40,12 +41,12 @@
       var prev = i ? target(ch[i - 1]) : null, p, mult;
       var scale = function (m) { return st['in'].map(function (x) { return [x[0], x[1] * m]; }); };
       if (/^(w|e|a)$/.test(st.k)) {
-        p = chance(D, st.lv, st.k, L);
+        p = chance_(D, st.lv, st.k, L);
         var q = p * COMBO * p;
         R[st.combo] = { comps: q ? scale(1 / q) : scale(Infinity), crafts: q ? 1 / q : Infinity, succ: p, comboSucc: q, lv: st.lv, kind: 'chain', k: st.k, splendent: true };
         R[st.n] = { comps: p ? scale(1 / p) : scale(Infinity), crafts: p ? 1 / p : Infinity, succ: p, lv: st.lv, kind: 'chain', k: st.k };
       } else if (st.k === 's1') {
-        p = chance(D, st.lv, 's1', L); pStar = p;
+        p = chance_(D, st.lv, 's1', L); pStar = p;
         R[st.n] = { comps: p ? scale(1 / p) : scale(Infinity), crafts: p ? 1 / p : Infinity, succ: p, lv: st.lv, kind: 'chain', k: st.k };
       } else if (/s$/.test(st.k)) {
         mult = 1 - COMBO * (st.k === 's1s' ? pStar : 1);
@@ -75,7 +76,7 @@
   }
 
   function compute(D, o) {
-    var R = recipes(D, o.type, o.lvl);
+    var R = recipes(D, o.type, o.lvl, o.ideal);
     var isCraft = function (n) {
       if (!R[n]) return false;
       if (o.buy && o.buy[n] && n !== o.goal) return false;
@@ -106,6 +107,11 @@
       }
     });
     steps.reverse(); // feuilles -> objectif
+    if (!o.ideal) {
+      var best = compute(D, Object.assign({}, o, { ideal: true })), min = {};
+      best.steps.forEach(function (x) { min[x.n] = x.produce; });
+      steps.forEach(function (x) { x.minProduce = min[x.n] != null ? min[x.n] : x.produce; });
+    }
     return { leaves: leaves, steps: steps, blocked: blocked, recipes: R };
   }
 
